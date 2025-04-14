@@ -2,7 +2,7 @@
 
 int main() {
     FILE *fp;
-    int c, i, max;
+    int c;
 
     fp = fopen("tarea", "rb");
     if (fp == NULL) {
