@@ -547,6 +547,48 @@ void instr_aaa(uint8_t *code, uint32_t *stack){
 }
 
 /**
+ * OPCODE 0x38
+ */
+void instr_cmp_rm8_r8(uint8_t *code, uint32_t *stack){
+   //rm8 -r8
+}
+
+/**
+ * OPCODE 0x39
+ */
+void instr_cmp_rm16_32_r16_32(uint8_t *code, uint32_t *stack){
+   //rm32-r32
+}
+
+/**
+ * OPCODE 0x3A
+ */
+void instr_cmp_r8_rm8(uint8_t *code, uint32_t *stack){
+   //r8 -rm8
+}
+
+/**
+ * OPCODE 0x3B
+ */
+void instr_cmp_r16_32_rm16_32(uint8_t *code, uint32_t *stack){
+   //r32-rm32
+}
+
+/**
+ * OPCODE 0x3C
+ */
+void instr_cmp_al_imm8(uint8_t *code, uint32_t *stack){
+
+}
+
+/**
+ * OPCODE 0x3D
+ */
+void instr_cmp_eax_imm32(uint8_t *code, uint32_t *stack){
+
+}
+
+/**
  * OPCODE 0x3F
  */
 void instr_aas(uint8_t *code, uint32_t *stack){
@@ -859,6 +901,14 @@ void instr_and_r8_imm8(uint8_t *code, uint32_t *stack){
    *r8 &= v;
 }
 
+/**
+ * OPCODE 0x80 /7
+ * 
+ * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_cmp_r8_imm8(uint8_t *code, uint32_t *stack){
+   
+}
 
 /**
  * OPCODE 0x81
@@ -927,6 +977,14 @@ void instr_and_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
    *r32 &= v;
 }
 
+/**
+ * OPCODE 0x81 /7
+ * 
+ * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_cmp_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
+   
+}
 
 /**
  * OPCODE 0x83
@@ -972,6 +1030,14 @@ void instr_and_r16_32_imm8(uint8_t *code, uint32_t *stack){
    *r32 &= v;
 }
 
+/**
+ * OPCODE 0x83 /7
+ * 
+ * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_cmp_r16_32_imm8(uint8_t *code, uint32_t *stack){
+
+}
 
 
 
