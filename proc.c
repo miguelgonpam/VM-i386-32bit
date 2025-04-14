@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 
 typedef void (*InstrFunc)(unsigned char *, unsigned int *);
@@ -1001,6 +1002,16 @@ void instr_cwde(unsigned char *code, unsigned int *stack){
    unsigned short int v = bit ? 0xFFFF : 0x0000;
    ax++;
    *ax = v; 
+}
+
+/**
+ * OPCODE 0x99 //cwd same but with 16b operand
+ */
+ void instr_cdq(uint8_t *code, uint32_t *stack){
+   
+   uint8_t bit = (eax >> 31) & 1;
+   uint32_t v = bit ? 0xFFFFFFFF : 0x00000000;
+   edx = v; 
 }
 
 /**
