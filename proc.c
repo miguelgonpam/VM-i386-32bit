@@ -4,12 +4,12 @@
 #include <stdint.h>
 
 
-typedef void (*InstrFunc)(unsigned char *, unsigned int *);
+typedef void (*InstrFunc)(uint8_t *, uint32_t *);
 
 //REGISTERS
-unsigned int eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, eflags, ss, es, gs = 0;
-unsigned int * regs[8] = {&eax, &ecx, &edx, &ebx, &esp, &ebp, &esi, &edi};
-unsigned char * regs8[8] = {(unsigned char *)&eax, (unsigned char *)&ecx, (unsigned char *)&edx, (unsigned char *)&ebx, ((unsigned char *)&eax)+1, ((unsigned char *)&ecx)+1, ((unsigned char *)&edx)+1, ((unsigned char *)&ebx)+1};
+uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, eflags, ss, es, gs = 0;
+uint32_t * regs[8] = {&eax, &ecx, &edx, &ebx, &esp, &ebp, &esi, &edi};
+uint8_t * regs8[8] = {(uint8_t *)&eax, (uint8_t *)&ecx, (uint8_t *)&edx, (uint8_t *)&ebx, ((uint8_t *)&eax)+1, ((uint8_t *)&ecx)+1, ((uint8_t *)&edx)+1, ((uint8_t *)&ebx)+1};
 
 
 // AUXILIARY FUNCTIONS
@@ -24,8 +24,8 @@ unsigned char * regs8[8] = {(unsigned char *)&eax, (unsigned char *)&ecx, (unsig
    Example: 15 (0x0f) equals to 0000 1111 -> {1,1,1,1,0,0,0,0}
 
 */
-void toBin(unsigned char c, unsigned char * b){
-   unsigned char t = c;
+void toBin(uint8_t c, uint8_t * b){
+   uint8_t t = c;
    int i = 0;
    while (t > 0){
       b[i] = t % 2;
@@ -42,7 +42,7 @@ void toBin(unsigned char c, unsigned char * b){
    Reverses the action od the ENTER instruction. Sets ESP to EBP and then pops to EBP.
 
 */
-void leave(unsigned int* stack ){
+void leave(uint32_t* stack ){
    esp=ebp;
    ebp=stack[--esp];
 }
@@ -54,7 +54,7 @@ void leave(unsigned int* stack ){
 
    Pops an item from the top of the stack to the variable as second argument.
 */
-void pop(unsigned int* stack, unsigned int * d){
+void pop(uint32_t* stack, uint32_t * d){
    *d = stack[--esp];
 }
 
@@ -63,7 +63,7 @@ void pop(unsigned int* stack, unsigned int * d){
 
    Pops a direction from the stack and uses it as the next program counter (eip).
 */
-void ret(unsigned int * stack){
+void ret(uint32_t * stack){
    eip = stack[--esp];
 }
 
@@ -72,7 +72,7 @@ void ret(unsigned int * stack){
 
    Sets the next program counter (eip) to the given direction.
 */
-void jump(unsigned int i){
+void jump(uint32_t i){
    eip=i;
 }
 
@@ -82,7 +82,7 @@ void jump(unsigned int i){
 
    Calls a subrutine, storing current eip in the stack.
 */
-void call(unsigned int* stack, unsigned int i){
+void call(uint32_t* stack, uint32_t i){
    stack[esp++]=eip;
    eip=i;
 }
@@ -94,10 +94,10 @@ void call(unsigned int* stack, unsigned int i){
 /**
  * OPCODE 0x00
  */
-void instr_add_rm8_r8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned char  * rm8 = (unsigned char *)regs8[(modrm & 0b00000111)];
-   unsigned char  * r8 = (unsigned char *)regs8[(modrm & 0b00111000)];
+void instr_add_rm8_r8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t  * rm8 = (uint8_t *)regs8[(modrm & 0b00000111)];
+   uint8_t  * r8 = (uint8_t *)regs8[(modrm & 0b00111000)];
    *rm8 += *r8;
    //flags
 }
@@ -105,30 +105,30 @@ void instr_add_rm8_r8(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x01
  */
-void instr_add_rm16_32_r16_32(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned int * rm32 = regs[(modrm & 0b00000111)];
-   unsigned int * r32 = regs[(modrm & 0b00111000)];
+void instr_add_rm16_32_r16_32(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[(modrm & 0b00000111)];
+   uint32_t * r32 = regs[(modrm & 0b00111000)];
    *rm32 += *r32;
 }
 
 /**
  * OPCODE 0x02
  */
-void instr_add_r8_rm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned char  * rm8 = (unsigned char *)regs8[(modrm & 0b00000111)];
-   unsigned char  * r8 = (unsigned char *)regs8[(modrm & 0b00111000)];
+void instr_add_r8_rm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t  * rm8 = (uint8_t *)regs8[(modrm & 0b00000111)];
+   uint8_t  * r8 = (uint8_t *)regs8[(modrm & 0b00111000)];
    *r8 += *rm8;
 }
 
 /**
  * OPCODE 0x03
  */
-void instr_add_r16_32_rm16_32(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned int * rm32 = regs[(modrm & 0b00000111)];
-   unsigned int * r32 = regs[(modrm & 0b00111000)];
+void instr_add_r16_32_rm16_32(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[(modrm & 0b00000111)];
+   uint32_t * r32 = regs[(modrm & 0b00111000)];
    *r32+=*rm32;
 }
 
@@ -136,17 +136,17 @@ void instr_add_r16_32_rm16_32(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 04   
  */
-void instr_add_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
+void instr_add_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
    *al += *(code+1);
 }
 
 /**
  * OPCODE 05
  */
-void instr_add_imm16_32(unsigned char *code, unsigned int *stack){
-   unsigned int v;
-   unsigned char * vv = (unsigned char *)&v ;
+void instr_add_imm16_32(uint8_t *code, uint32_t *stack){
+   uint32_t v;
+   uint8_t * vv = (uint8_t *)&v ;
    *vv = *(code+1);vv++;
    *vv = *(code+2);vv++;
    *vv = *(code+3);vv++;
@@ -157,19 +157,19 @@ void instr_add_imm16_32(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F A3
  */
-void instr_bt_r(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_bt_r(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
-   unsigned short int nbit = *r32;
-   unsigned short int bin = 0x01;
+   uint16_t nbit = *r32;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v)
       *f|= 0x1;
    else
@@ -179,19 +179,19 @@ void instr_bt_r(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F AB
  */
-void instr_bts_r(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_bts_r(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
-   unsigned short int nbit = *r32;
-   unsigned short int bin = 0x01;
+   uint16_t nbit = *r32;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 |= 0x1;
@@ -204,19 +204,19 @@ void instr_bts_r(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F B3
  */
-void instr_btr_r(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_btr_r(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
-   unsigned short int nbit = *r32;
-   unsigned short int bin = 0x01;
+   uint16_t nbit = *r32;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 &= 0xFFFFFFFE;
@@ -231,18 +231,18 @@ void instr_btr_r(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 100 (4) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_bt_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned char nbit = *(code+3);
+void instr_bt_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint8_t nbit = *(code+3);
 
-   unsigned short int bin = 0x01;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
    }else{
@@ -255,18 +255,18 @@ void instr_bt_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 101 (5) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_bts_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned char nbit = *(code+3);
+void instr_bts_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint8_t nbit = *(code+3);
 
-   unsigned short int bin = 0x01;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 |= 0x1;
@@ -281,18 +281,18 @@ void instr_bts_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 110 (6) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_btr_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned char nbit = *(code+3);
+void instr_btr_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint8_t nbit = *(code+3);
 
-   unsigned short int bin = 0x01;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 &= 0xFFFFFFFE;
@@ -308,18 +308,18 @@ void instr_btr_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_btc_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned char nbit = *(code+3);
+void instr_btc_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint8_t nbit = *(code+3);
 
-   unsigned short int bin = 0x01;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 ^= (1 << *(code+3));
@@ -332,19 +332,19 @@ void instr_btc_imm8(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F BB
  */
-void instr_btc_r(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_btc_r(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
-   unsigned short int nbit = *r32;
-   unsigned short int bin = 0x01;
+   uint16_t nbit = *r32;
+   uint16_t bin = 0x01;
    while(nbit){ //genera el binario en bin para enmascarar el bit a poner en el CF
       nbit--;
       bin+=bin;
    }
-   unsigned short int v = *rm32 & bin;
+   uint16_t v = *rm32 & bin;
    if(v){
       *f|= 0x1;
       *rm32 ^= (1 << *r32);
@@ -358,11 +358,11 @@ void instr_btc_r(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F BC
  */
-void instr_bsf(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_bsf(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
    if ( ! *rm32){
       *f |= 0x0040;
@@ -382,18 +382,18 @@ void instr_bsf(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x0F BD
  */
-void instr_bsr(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+2);
-   unsigned short int * f = (unsigned short int *)&eflags;
-   unsigned int *rm32 = regs[(modrm & 0b00000111)];
-   unsigned int *r32 = regs[(modrm & 0b00111000)];
+void instr_bsr(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+2);
+   uint16_t * f = (uint16_t *)&eflags;
+   uint32_t *rm32 = regs[(modrm & 0b00000111)];
+   uint32_t *r32 = regs[(modrm & 0b00111000)];
 
    if ( ! *rm32){
       *f |= 0x0040;
    }else{
       short int temp = 31;
       *f &= 0xFFBF;
-      unsigned int cont = 0x80000000;
+      uint32_t cont = 0x80000000;
       while (!((cont & *rm32) | 0x0)){
          cont/=2;
          temp--;
@@ -405,20 +405,20 @@ void instr_bsr(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x14
  */
-void instr_adc_ib_al(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
-   unsigned char b = *(code+1);
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_adc_ib_al(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
+   uint8_t b = *(code+1);
+   uint16_t * f = (uint16_t *)&eflags;
    *al= *al+b+( *f & 0x1);
 }
 
 /**
  * OPCODE 0x15
  */
-void instr_adc_iw_id(unsigned char *code, unsigned int *stack){
-   unsigned int v;
-   unsigned char * vv = (unsigned char *)&v;
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_adc_iw_id(uint8_t *code, uint32_t *stack){
+   uint32_t v;
+   uint8_t * vv = (uint8_t *)&v;
+   uint16_t * f = (uint16_t *)&eflags;
 
    *vv = *(code+1);vv++;
    *vv = *(code+2);vv++;
@@ -431,68 +431,68 @@ void instr_adc_iw_id(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x20
  */
-void instr_and_rm8_r8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned char  * rm8 = (unsigned char *)regs8[(modrm & 0b00000111)];
-   unsigned char  * r8 = (unsigned char *)regs8[(modrm & 0b00111000)];
+void instr_and_rm8_r8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t  * rm8 = (uint8_t *)regs8[(modrm & 0b00000111)];
+   uint8_t  * r8 = (uint8_t *)regs8[(modrm & 0b00111000)];
    *rm8 &= *r8;
-   unsigned short int * f= (unsigned short int *)&eflags;
+   uint16_t * f= (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
 /**
  * OPCODE 0x21
  */
-void instr_and_rm16_32_r16_32(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned int * rm32 = regs[(modrm & 0b00000111)];
-   unsigned int * r32 = regs[(modrm & 0b00111000)];
+void instr_and_rm16_32_r16_32(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[(modrm & 0b00000111)];
+   uint32_t * r32 = regs[(modrm & 0b00111000)];
    *rm32 &= *r32;
-   unsigned short int * f = (unsigned short int *)&eflags;
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
 /**
  * OPCODE 0x22
  */
-void instr_and_r8_rm8(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned char  * rm8 = (unsigned char *)regs8[(modrm & 0b00000111)];
-   unsigned char  * r8 = (unsigned char *)regs8[(modrm & 0b00111000)];
+void instr_and_r8_rm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t  * rm8 = (uint8_t *)regs8[(modrm & 0b00000111)];
+   uint8_t  * r8 = (uint8_t *)regs8[(modrm & 0b00111000)];
    *r8 &= *rm8;
-   unsigned short int * f = (unsigned short int *)&eflags;
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
 /**
  * OPCODE 0x23
  */
-void instr_and_r16_32_rm16_32(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned int * rm32 = regs[(modrm & 0b00000111)];
-   unsigned int * r32 = regs[(modrm & 0b00111000)];
+void instr_and_r16_32_rm16_32(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[(modrm & 0b00000111)];
+   uint32_t * r32 = regs[(modrm & 0b00111000)];
    *r32 &= *rm32;
-   unsigned short int * f = (unsigned short int *)&eflags;
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
 /**
  * OPCODE 0x24
  */
-void instr_and_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
-   unsigned char v = *(code+1);
+void instr_and_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
+   uint8_t v = *(code+1);
    *al &= v;
-   unsigned short int * f = (unsigned short int *)&eflags;
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
 /**
  * OPCODE 0x25
  */
-void instr_and_imm16_32(unsigned char *code, unsigned int *stack){
-   unsigned int v;
-   unsigned char * vv = (unsigned char *)&v;
+void instr_and_imm16_32(uint8_t *code, uint32_t *stack){
+   uint32_t v;
+   uint8_t * vv = (uint8_t *)&v;
 
    *vv=*(code+1);vv++;
    *vv=*(code+2);vv++;
@@ -500,7 +500,7 @@ void instr_and_imm16_32(unsigned char *code, unsigned int *stack){
    *vv=*(code+4);
 
    eax &= v;
-   unsigned short int * f = (unsigned short int *)&eflags;
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xF7BF;
 }
 
@@ -509,9 +509,9 @@ void instr_and_imm16_32(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0xD5 0A
  */
-void instr_aad(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
-   unsigned char * ah = al+1;
+void instr_aad(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
+   uint8_t * ah = al+1;
    *al = *ah * 10 + *al;
    *ah = 0;
    //flags? SF PF ZF
@@ -520,9 +520,9 @@ void instr_aad(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0xD4 0A
  */
-void instr_aam(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
-   unsigned char * ah = al+1;
+void instr_aam(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
+   uint8_t * ah = al+1;
    *ah = *al / 10;
    *al %= 10;
    //flags?
@@ -531,9 +531,9 @@ void instr_aam(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x37
  */
-void instr_aaa(unsigned char *code, unsigned int *stack){
-   unsigned char * c = (unsigned char *)&eax;
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_aaa(uint8_t *code, uint32_t *stack){
+   uint8_t * c = (uint8_t *)&eax;
+   uint16_t * f = (uint16_t *)&eflags;
    if (*f & 0b00000100 || (*c & 0b00001111) > 9){
       *c += 6;
       *c&= 0b00001111;
@@ -549,9 +549,9 @@ void instr_aaa(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x3F
  */
-void instr_aas(unsigned char *code, unsigned int *stack){
-   unsigned char * al = (unsigned char *)&eax;
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_aas(uint8_t *code, uint32_t *stack){
+   uint8_t * al = (uint8_t *)&eax;
+   uint16_t * f = (uint16_t *)&eflags;
    if(*f & 0b00000100 || (*al & 0b00001111) > 9){
       *al-=6;
       *al&=0x0F;
@@ -568,146 +568,146 @@ void instr_aas(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x40
  */
-void instr_inc_eax(unsigned char *code, unsigned int *stack){
+void instr_inc_eax(uint8_t *code, uint32_t *stack){
    eax++;
 }
 
 /**
  * OPCODE 0x41
  */
-void instr_inc_ecx(unsigned char *code, unsigned int *stack){
+void instr_inc_ecx(uint8_t *code, uint32_t *stack){
    ecx++;
 }
 
 /**
  * OPCODE 0x42
  */
-void instr_inc_edx(unsigned char *code, unsigned int *stack){
+void instr_inc_edx(uint8_t *code, uint32_t *stack){
    edx++;
 }
 
 /**
  * OPCODE 0x43
  */
-void instr_inc_ebx(unsigned char *code, unsigned int *stack){
+void instr_inc_ebx(uint8_t *code, uint32_t *stack){
    ebx++;
 }
 
 /**
  * OPCODE 0x44
  */
-void instr_inc_esp(unsigned char *code, unsigned int *stack){
+void instr_inc_esp(uint8_t *code, uint32_t *stack){
    esp++;
 }
 
 /**
  * OPCODE 0x45
  */
-void instr_inc_ebp(unsigned char *code, unsigned int *stack){
+void instr_inc_ebp(uint8_t *code, uint32_t *stack){
    ebp++;
 }
 
 /**
  * OPCODE 0x46
  */
-void instr_inc_esi(unsigned char *code, unsigned int *stack){
+void instr_inc_esi(uint8_t *code, uint32_t *stack){
    esi++;
 }
 
 /**
  * OPCODE 0x47
  */
-void instr_inc_edi(unsigned char *code, unsigned int *stack){
+void instr_inc_edi(uint8_t *code, uint32_t *stack){
    edi++;
 }
 
 /**
  * OPCODE 0x48
  */
-void instr_dec_eax(unsigned char *code, unsigned int *stack){
+void instr_dec_eax(uint8_t *code, uint32_t *stack){
    eax--;
 }
 
 /**
  * OPCODE 0x49
  */
-void instr_dec_ecx(unsigned char *code, unsigned int *stack){
+void instr_dec_ecx(uint8_t *code, uint32_t *stack){
    ecx--;
 }
 
 /**
  * OPCODE 0x4A
  */
-void instr_dec_edx(unsigned char *code, unsigned int *stack){
+void instr_dec_edx(uint8_t *code, uint32_t *stack){
    edx--;
 }
 
 /**
  * OPCODE 0x4B
  */
-void instr_dec_ebx(unsigned char *code, unsigned int *stack){
+void instr_dec_ebx(uint8_t *code, uint32_t *stack){
    ebx--;
 }
 
 /**
  * OPCODE 0x4C
  */
-void instr_dec_esp(unsigned char *code, unsigned int *stack){
+void instr_dec_esp(uint8_t *code, uint32_t *stack){
    esp--;
 }
 
 /**
  * OPCODE 0x4D
  */
-void instr_dec_ebp(unsigned char *code, unsigned int *stack){
+void instr_dec_ebp(uint8_t *code, uint32_t *stack){
    ebp--;
 }
 
 /**
  * OPCODE 0x4E
  */
-void instr_dec_esi(unsigned char *code, unsigned int *stack){
+void instr_dec_esi(uint8_t *code, uint32_t *stack){
    esi--;
 }
 
 /**
  * OPCODE 0x4F
  */
-void instr_dec_edi(unsigned char *code, unsigned int *stack){
+void instr_dec_edi(uint8_t *code, uint32_t *stack){
    edi--;
 }
 
 /**
  * OPCODE 0x50
  */
-void instr_push_eax(unsigned char *code, unsigned int *stack) {
+void instr_push_eax(uint8_t *code, uint32_t *stack) {
    stack[esp++]=eax;}
 
 /**
  * OPCODE 0x51
  */
-void instr_push_ecx(unsigned char *code, unsigned int *stack) {
+void instr_push_ecx(uint8_t *code, uint32_t *stack) {
    stack[esp++]=ecx;
 }
 
 /**
  * OPCODE 0x52
  */
-void instr_push_edx(unsigned char *code, unsigned int *stack) {
+void instr_push_edx(uint8_t *code, uint32_t *stack) {
    stack[esp++]=edx;
 }
 
 /**
  * OPCODE 0x53
  */
-void instr_push_ebx(unsigned char *code, unsigned int *stack) {
+void instr_push_ebx(uint8_t *code, uint32_t *stack) {
    stack[esp++]=ebx;
 }
 
 /**
  * OPCODE 0x54
  */
-void instr_push_esp(unsigned char *code, unsigned int *stack) {
+void instr_push_esp(uint8_t *code, uint32_t *stack) {
    stack[esp]=esp;
    esp++;
 }
@@ -715,56 +715,56 @@ void instr_push_esp(unsigned char *code, unsigned int *stack) {
 /**
  * OPCODE 0x55
  */
-void instr_push_ebp(unsigned char *code, unsigned int *stack) {
+void instr_push_ebp(uint8_t *code, uint32_t *stack) {
    stack[esp++]=ebp;
 }
 
 /**
  * OPCODE 0x56
  */
-void instr_push_esi(unsigned char *code, unsigned int *stack) {
+void instr_push_esi(uint8_t *code, uint32_t *stack) {
    stack[esp++]=esi;
 }
 
 /**
  * OPCODE 0x57
  */
-void instr_push_edi(unsigned char *code, unsigned int *stack) {
+void instr_push_edi(uint8_t *code, uint32_t *stack) {
    stack[esp++]=edi;
 }
 
 /**
  * OPCODE 0x58
  */
-void instr_pop_eax(unsigned char *code, unsigned int *stack) {
+void instr_pop_eax(uint8_t *code, uint32_t *stack) {
    eax = stack[--esp];
 }
 
 /**
  * OPCODE 0x59
  */
-void instr_pop_ecx(unsigned char *code, unsigned int *stack) {
+void instr_pop_ecx(uint8_t *code, uint32_t *stack) {
    ecx = stack[--esp];
 }
 
 /**
  * OPCODE 0x5A
  */
-void instr_pop_edx(unsigned char *code, unsigned int *stack) {
+void instr_pop_edx(uint8_t *code, uint32_t *stack) {
    edx = stack[--esp];
 }
 
 /**
  * OPCODE 0x5B
  */
-void instr_pop_ebx(unsigned char *code, unsigned int *stack) {
+void instr_pop_ebx(uint8_t *code, uint32_t *stack) {
    ebx = stack[--esp];
 }
 
 /**
  * OPCODE 0x5C
  */
-void instr_pop_esp(unsigned char *code, unsigned int *stack) {
+void instr_pop_esp(uint8_t *code, uint32_t *stack) {
    --esp;
    esp = stack[esp];
 }
@@ -772,33 +772,33 @@ void instr_pop_esp(unsigned char *code, unsigned int *stack) {
 /**
  * OPCODE 0x5D
  */
-void instr_pop_ebp(unsigned char *code, unsigned int *stack) {
+void instr_pop_ebp(uint8_t *code, uint32_t *stack) {
    ebp = stack[--esp];
 }
 
 /**
  * OPCODE 0x5E
  */
-void instr_pop_esi(unsigned char *code, unsigned int *stack) {
+void instr_pop_esi(uint8_t *code, uint32_t *stack) {
    esi = stack[--esp];
 }
 
 /**
  * OPCODE 0x5F
  */
-void instr_pop_edi(unsigned char *code, unsigned int *stack) {
+void instr_pop_edi(uint8_t *code, uint32_t *stack) {
    edi = stack[--esp];
 }
 
 /**
  * OPCODE 0x63
  */
-void instr_arpl(unsigned char *code, unsigned int *stack){
-   unsigned char modrm = *(code+1);
-   unsigned short int * rm16 = (unsigned short int *)regs[(modrm & 0b00000111)];
-   unsigned short int * r16 = (unsigned short int *)regs[(modrm & 0b00111000)];
-   unsigned short int v1,v2;
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_arpl(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint16_t * rm16 = (uint16_t *)regs[(modrm & 0b00000111)];
+   uint16_t * r16 = (uint16_t *)regs[(modrm & 0b00111000)];
+   uint16_t v1,v2;
+   uint16_t * f = (uint16_t *)&eflags;
    v1 = *rm16 & 0x3;
    v2 = *r16 & 0x3;
    if (v1 < v2){
@@ -817,7 +817,7 @@ void instr_arpl(unsigned char *code, unsigned int *stack){
  * 
  * Includes all the 0x80 instructions, and calls the one needed based on the ModR/M byte
  */
-void opcode80(unsigned char *code, unsigned int *stack){
+void opcode80(uint8_t *code, uint32_t *stack){
 
 }
 
@@ -826,9 +826,9 @@ void opcode80(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 000 (0) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_add_r8_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char *r8 = (unsigned char*)regs8[((*(code+1)) & 0x7)];
-   unsigned char v = *(code+2);
+void instr_add_r8_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t *r8 = (uint8_t*)regs8[((*(code+1)) & 0x7)];
+   uint8_t v = *(code+2);
 
    *r8 += v;
    //flags?
@@ -839,11 +839,11 @@ void instr_add_r8_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 010 (2) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_adc_r8_imm8(unsigned char *code, unsigned int *stack){
-   unsigned short int v = *(code+1) ; //byte ModR/M
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_adc_r8_imm8(uint8_t *code, uint32_t *stack){
+   uint16_t v = *(code+1) ; //byte ModR/M
+   uint16_t * f = (uint16_t *)&eflags;
    v&=0b00000111;
-   unsigned char * reg = (unsigned char *) regs8[v];
+   uint8_t * reg = (uint8_t *) regs8[v];
    *reg = *reg + *(code+2) + (*f & 0x1);
 }
 
@@ -852,9 +852,9 @@ void instr_adc_r8_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 100 (4) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_and_r8_imm8(unsigned char *code, unsigned int *stack){
-   unsigned char * r8 = (unsigned char*)regs8[((*(code+1)) & 0x7)];
-   unsigned char v = *(code+2);
+void instr_and_r8_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t * r8 = (uint8_t*)regs8[((*(code+1)) & 0x7)];
+   uint8_t v = *(code+2);
 
    *r8 &= v;
 }
@@ -865,7 +865,7 @@ void instr_and_r8_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Includes all the 0x81 instructions, and calls the one needed based on the ModR/M byte
  */
-void opcode81(unsigned char *code, unsigned int *stack){
+void opcode81(uint8_t *code, uint32_t *stack){
 
 }
 
@@ -874,10 +874,10 @@ void opcode81(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 000 (0) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_add_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
-   unsigned int * r32 = regs[((*(code+1))&0x7)];
-   unsigned int v;
-   unsigned char * vv = (unsigned char *)&v;
+void instr_add_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
+   uint32_t * r32 = regs[((*(code+1))&0x7)];
+   uint32_t v;
+   uint8_t * vv = (uint8_t *)&v;
 
    *vv=*(code+2);vv++;
    *vv=*(code+3);vv++;
@@ -892,14 +892,14 @@ void instr_add_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 010 (2) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_adc_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
-   unsigned short int b = *(code+1) ; //byte ModR/M
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_adc_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
+   uint16_t b = *(code+1) ; //byte ModR/M
+   uint16_t * f = (uint16_t *)&eflags;
    b&=0b00000111;
-   unsigned int * reg = regs[b];
+   uint32_t * reg = regs[b];
 
-   unsigned int v; //valor inmediato
-   unsigned char * vv = (unsigned char *)&v; //puntero a byte que recorre el valor inmediato para rellenarlo desde el bytecode
+   uint32_t v; //valor inmediato
+   uint8_t * vv = (uint8_t *)&v; //puntero a byte que recorre el valor inmediato para rellenarlo desde el bytecode
 
    *vv = *(code+2);vv++;
    *vv = *(code+3);vv++;
@@ -914,10 +914,10 @@ void instr_adc_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 100 (4) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_and_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
-   unsigned int * r32 = regs[((*code+1) & 0x7)];
-   unsigned int v; //valor inmediato
-   unsigned char * vv = (unsigned char *)&v; //puntero a byte que recorre el valor inmediato para rellenarlo desde el bytecode
+void instr_and_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
+   uint32_t * r32 = regs[((*code+1) & 0x7)];
+   uint32_t v; //valor inmediato
+   uint8_t * vv = (uint8_t *)&v; //puntero a byte que recorre el valor inmediato para rellenarlo desde el bytecode
 
    *vv = *(code+2);vv++;
    *vv = *(code+3);vv++;
@@ -933,7 +933,7 @@ void instr_and_r16_32_imm16_32(unsigned char *code, unsigned int *stack){
  * 
  * Includes all the 0x83 instructions, and calls the one needed based on the ModR/M byte
  */
-void opcode83(unsigned char *code, unsigned int *stack){
+void opcode83(uint8_t *code, uint32_t *stack){
 
 }
 
@@ -942,9 +942,9 @@ void opcode83(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 000 (0) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_add_r16_32_imm8(unsigned char *code, unsigned int *stack){
-   unsigned int * r32 = regs[((*(code+1))&0x7)];
-   unsigned char v = *(code+2);
+void instr_add_r16_32_imm8(uint8_t *code, uint32_t *stack){
+   uint32_t * r32 = regs[((*(code+1))&0x7)];
+   uint8_t v = *(code+2);
 
    *r32 += v;
 }
@@ -954,20 +954,20 @@ void instr_add_r16_32_imm8(unsigned char *code, unsigned int *stack){
  * 
  * Debe tener un valor de 010 (2) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
-void instr_adc_r16_32_imm8(unsigned char *code, unsigned int *stack){
-   unsigned short int v = *(code+1) ; //byte ModR/M
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_adc_r16_32_imm8(uint8_t *code, uint32_t *stack){
+   uint16_t v = *(code+1) ; //byte ModR/M
+   uint16_t * f = (uint16_t *)&eflags;
    v&=0b00000111;
-   unsigned int * reg = regs[v];
+   uint32_t * reg = regs[v];
    *reg = *reg + *(code+2) + (*f & 0x1);
 }
 
 /**
  * OPCODE 0x83 /4
  */
-void instr_and_r16_32_imm8(unsigned char *code, unsigned int *stack){
-   unsigned int * r32 = regs[((*(code+1)) & 0x7)];
-   unsigned char v = *(code+2);
+void instr_and_r16_32_imm8(uint8_t *code, uint32_t *stack){
+   uint32_t * r32 = regs[((*(code+1)) & 0x7)];
+   uint8_t v = *(code+2);
 
    *r32 &= v;
 }
@@ -980,14 +980,14 @@ void instr_and_r16_32_imm8(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x90
  */
-void instr_nop(unsigned char *code, unsigned int *stack){
+void instr_nop(uint8_t *code, uint32_t *stack){
    
 }
 /**
  * OPCODE 0x91
  */
-void instr_xchg_ecx_eax(unsigned char *code, unsigned int *stack){
-   unsigned int a;
+void instr_xchg_ecx_eax(uint8_t *code, uint32_t *stack){
+   uint32_t a;
    a = eax;
    eax = ecx;
    ecx = a;
@@ -996,10 +996,10 @@ void instr_xchg_ecx_eax(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0x98
  */
-void instr_cwde(unsigned char *code, unsigned int *stack){
-   unsigned short int *ax = (unsigned short int *) &eax;
-   unsigned char bit = (*ax >> 15) & 1;
-   unsigned short int v = bit ? 0xFFFF : 0x0000;
+void instr_cwde(uint8_t *code, uint32_t *stack){
+   uint16_t *ax = (uint16_t *) &eax;
+   uint8_t bit = (*ax >> 15) & 1;
+   uint16_t v = bit ? 0xFFFF : 0x0000;
    ax++;
    *ax = v; 
 }
@@ -1017,32 +1017,32 @@ void instr_cwde(unsigned char *code, unsigned int *stack){
 /**
  * OPCODE 0xF5
  */
-void instr_cmc(unsigned char *code, unsigned int *stack){
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_cmc(uint8_t *code, uint32_t *stack){
+   uint16_t * f = (uint16_t *)&eflags;
    *f ^= 0x1;
 }
 
 /**
  * OPCODE 0xF8
  */
-void instr_clc(unsigned char *code, unsigned int *stack){
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_clc(uint8_t *code, uint32_t *stack){
+   uint16_t * f = (uint16_t *)&eflags;
    *f &=0xFFFE; 
 }
 
 /**
  * OPCODE 0xFA
  */
-void instr_cli(unsigned char *code, unsigned int *stack){
-   unsigned short int * f = (unsigned short int *)&eflags;
+void instr_cli(uint8_t *code, uint32_t *stack){
+   uint16_t * f = (uint16_t *)&eflags;
    *f&=0xFDFF;
 }
 
 /**
  * OPCODE 0xFC
  */
-void instr_cld(unsigned char *code, unsigned int *stack){
-   unsigned short int * f= (unsigned short int *)&eflags;
+void instr_cld(uint8_t *code, uint32_t *stack){
+   uint16_t * f= (uint16_t *)&eflags;
    *f&=0xFBFF;
 }
 
@@ -1129,12 +1129,12 @@ int main(){
    InstrFunc instr[256];
    fillInstr(instr);
    //STACK
-   unsigned int * stack = (unsigned int *)malloc(135168 * sizeof(unsigned char));
+   uint32_t * stack = (uint32_t *)malloc(135168 * sizeof(uint8_t));
 
    
    eax = 0xFF;
    printf("eax : 0x%8x\n", eax);
-   unsigned char code[6] ={ 0x81, 0xD0, 0xFF, 0x00, 0x00, 0x00};
+   uint8_t code[6] ={ 0x81, 0xD0, 0xFF, 0x00, 0x00, 0x00};
    instr_add_r16_32_imm16_32(code, stack);
    printf("eax : 0x%8x\n", eax);
    
@@ -1153,12 +1153,12 @@ int main(){
    free(stack);
 
    //CODE
-   //unsigned char * code = (unsigned char *)malloc(3000 * sizeof(unsigned char));
+   //uint8_t * code = (uint8_t *)malloc(3000 * sizeof(uint8_t));
    //free(code);
 
    //LIBRARIES
-   //unsigned char * lib1 = (unsigned char *)malloc(3000 * sizeof(unsigned char));
-   //unsigned char * lib2 = (unsigned char *)malloc(3000 * sizeof(unsigned char));
+   //uint8_t * lib1 = (uint8_t *)malloc(3000 * sizeof(uint8_t));
+   //uint8_t * lib2 = (uint8_t *)malloc(3000 * sizeof(uint8_t));
    //free(lib1);
    //free(lib2);
 
@@ -1170,14 +1170,14 @@ int main(){
 
    Para hexadecimal: %x
    Para decimal sin signo: %u
-   unsigned int a = UINT_MAX; // -> direcciones (0xffffffff)
-   unsigned char b = UCHAR_MAX; // -> datos (0xff)
+   uint32_t a = UINT_MAX; // -> direcciones (0xffffffff)
+   uint8_t b = UCHAR_MAX; // -> datos (0xff)
    printf("%8x %2x\n", a,b);
 
    printf("%p \n", (void *)rsp);
 
-   unsigned char c = 31;
-   unsigned char bin[8] = {0,0,0,0,0,0,0,0}; //bin[0] => LSB , bin[7] => MSB
+   uint8_t c = 31;
+   uint8_t bin[8] = {0,0,0,0,0,0,0,0}; //bin[0] => LSB , bin[7] => MSB
    toBin(c, bin);
    printf("%1d%1d%1d%1d %1d%1d%1d%1d\n", bin[7], bin[6], bin[5], bin[4], bin[3], bin[2], bin[1], bin[0]);
 
@@ -1189,7 +1189,7 @@ int main(){
    pop(stack, &eax);
    printf("%u %u : %u\n", esp, eax, stack[0]);
 
-   //unsigned char * p = (unsigned char *)&eax;
+   //uint8_t * p = (uint8_t *)&eax;
    //p+=3;
    // *p=0xFF;
 **/
