@@ -3,6 +3,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define SET_FLAG(f)   (eflags |= (f))
+#define CLEAR_FLAG(f) (eflags &= ~(f))
+#define CF 0x1
+#define PF 0x4
+#define AF 0x10
+#define ZF 0x40
+#define SF 0x80
+#define OF 0x800
 
 typedef void (*InstrFunc)(uint8_t *, uint32_t *);
 
@@ -85,6 +93,14 @@ void jump(uint32_t i){
 void call(uint32_t* stack, uint32_t i){
    stack[esp++]=eip;
    eip=i;
+}
+
+uint8_t parity(uint8_t num){
+   int cont=0;
+   for (int i=0; i<8;i++){
+      cont += (num >> i) & 1;
+   }
+   return !(cont%2);
 }
 
 //#############################################################
@@ -504,7 +520,49 @@ void instr_and_imm16_32(uint8_t *code, uint32_t *stack){
    *f&=0xF7BF;
 }
 
+/**
+ * OPCODE 0x27
+ */
+void instr_daa(uint8_t *code, uint32_t *stack){
+   uint8_t *al = (uint8_t *)&eax;
+   if((*al & 0xF) > 9 || (eflags >> 4) & 1){
+      *al+=6;
+      SET_FLAG(AF);
+   }else{
+      CLEAR_FLAG(AF);
+   }
+   if(*al > 0x9F || eflags & 0x1){
+      *al += 0x60;
+      SET_FLAG(CF);
+   }else{
+      CLEAR_FLAG(CF);
+   }
+   (*al >> 7) & 1? (SET_FLAG(SF)):(CLEAR_FLAG(SF));
+   (!*al)?(SET_FLAG(ZF)):(CLEAR_FLAG(ZF));
+   parity(*al)?(SET_FLAG(PF)):(CLEAR_FLAG(PF));
+}
 
+/**
+ * OPCODE 0x2F
+ */
+void instr_das(uint8_t *code, uint32_t *stack){
+   uint8_t *al = (uint8_t *)&eax;
+   if((*al & 0xF) > 9 || (eflags >> 4) & 1){
+      *al-=6;
+      SET_FLAG(AF);
+   }else{
+      CLEAR_FLAG(AF);
+   }
+   if(*al > 0x9F || eflags & 0x1){
+      *al -= 0x60;
+      SET_FLAG(CF);
+   }else{
+      CLEAR_FLAG(CF);
+   }
+   (*al >> 7) & 1? (SET_FLAG(SF)):(CLEAR_FLAG(SF));
+   (!*al)?(SET_FLAG(ZF)):(CLEAR_FLAG(ZF));
+   parity(*al)?(SET_FLAG(PF)):(CLEAR_FLAG(PF));
+}
 
 /**
  * OPCODE 0xD5 0A
@@ -550,7 +608,28 @@ void instr_aaa(uint8_t *code, uint32_t *stack){
  * OPCODE 0x38
  */
 void instr_cmp_rm8_r8(uint8_t *code, uint32_t *stack){
-   //rm8 -r8
+   //rm8 -r8 
+   uint8_t modrm = *(code+1);
+   uint8_t * rm8 = regs8[modrm  & 0x7];
+   uint8_t * r8 = regs8[modrm  & 0x38];
+   uint8_t res = *rm8 - *r8;
+   (*r8 > *rm8)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   (parity(res))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*rm8 ^ *r8 ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 7) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   (((*rm8 ^ *r8) & 0x80) && ((*rm8 ^ res) & 0x80))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
+
+   /**
+    * 
+    * 
+    * (*r8 > *rm8)? (eflags|=0x1): (eflags&=0xFFFFFFFE);//activar CF
+   (parity(res))? (eflags|=0x4): (eflags&=0xFFFFFFFB);//activar PF
+   ((*rm8 ^ *r8 ^ res) & 0x10)? (eflags|=0x10): (eflags&=0xFFFFFFEF);//activar AF
+   (!res)? (eflags|=0x40): (eflags&=0xFFFFFFBF);//activar ZF
+   (res >> 7) ? (eflags|=0x80) : (eflags&=0xFFFFFF7F); //activar SF
+   (((*rm8 ^ *r8) & 0x80) && ((*rm8 ^ res) & 0x80))? (eflags|=0x800): (eflags&=0xFFFFF7FF) ;//activa OF
+    */
 }
 
 /**
@@ -558,6 +637,17 @@ void instr_cmp_rm8_r8(uint8_t *code, uint32_t *stack){
  */
 void instr_cmp_rm16_32_r16_32(uint8_t *code, uint32_t *stack){
    //rm32-r32
+   uint8_t modrm = *(code+1);
+   uint32_t *rm32 = regs[modrm & 0x7];
+   uint32_t *r32 = regs[modrm & 0x38];
+   uint32_t res = *rm32 - *r32;
+   (*r32 > *rm32)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   uint8_t * res8 = (uint8_t *)&res;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*rm32 ^ *r32 ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((*rm32 ^ *r32) & 0x80) && ((*rm32 ^ res) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
@@ -565,6 +655,16 @@ void instr_cmp_rm16_32_r16_32(uint8_t *code, uint32_t *stack){
  */
 void instr_cmp_r8_rm8(uint8_t *code, uint32_t *stack){
    //r8 -rm8
+   uint8_t modrm = *(code+1);
+   uint8_t * rm8 = regs8[modrm  & 0x7];
+   uint8_t * r8 = regs8[modrm  & 0x38];
+   uint8_t res = *r8 - *rm8;
+   (*rm8 > *r8)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   (parity(res))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*r8 ^ *rm8 ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 7) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   (((*r8 ^ *rm8) & 0x80) && ((*r8 ^ res) & 0x80))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
@@ -572,20 +672,55 @@ void instr_cmp_r8_rm8(uint8_t *code, uint32_t *stack){
  */
 void instr_cmp_r16_32_rm16_32(uint8_t *code, uint32_t *stack){
    //r32-rm32
+   uint8_t modrm = *(code+1);
+   uint32_t *rm32 = regs[modrm & 0x7];
+   uint32_t *r32 = regs[modrm & 0x38];
+   uint32_t res = *r32 - *rm32;
+   (*rm32 > *r32)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   uint8_t * res8 = (uint8_t *)&res;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*r32 ^ *rm32 ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((*r32 ^ *rm32) & 0x80) && ((*r32 ^ res) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
  * OPCODE 0x3C
  */
 void instr_cmp_al_imm8(uint8_t *code, uint32_t *stack){
-
+   //al -imm8
+   uint8_t v = *(code+1);
+   uint8_t *al = (uint8_t *)&eax;
+   
+   uint8_t res = *al - v;
+   (v > *al)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   (parity(res))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*al ^ v ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 7) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   (((*al ^ v) & 0x80) && ((*al ^ res) & 0x80))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
  * OPCODE 0x3D
  */
 void instr_cmp_eax_imm32(uint8_t *code, uint32_t *stack){
-
+   uint32_t v;
+   uint8_t *p = (uint8_t *)&v;
+   p[0]=*(code+1);
+   p[1]=*(code+2);
+   p[2]=*(code+3);
+   p[3]=*(code+4);
+   
+   uint32_t res = eax - v;
+   (v > eax)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   uint8_t * res8 = (uint8_t *)&res;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((eax ^ v ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((eax ^ v) & 0x80) && ((eax ^ res) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
@@ -907,7 +1042,17 @@ void instr_and_r8_imm8(uint8_t *code, uint32_t *stack){
  * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
 void instr_cmp_r8_imm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t v = *(code+2);
+   uint8_t *rm8 = (uint8_t *)regs8[modrm & 0x7];
    
+   uint8_t res = *rm8 - v;
+   (v > *rm8)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   (parity(res))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*rm8 ^ v ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 7) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   (((*rm8 ^ v) & 0x80) && ((*rm8 ^ res) & 0x80))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
@@ -983,7 +1128,23 @@ void instr_and_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
  * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
 void instr_cmp_r16_32_imm16_32(uint8_t *code, uint32_t *stack){
+   uint32_t v;
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[modrm & 0x7];
+   uint8_t *p = (uint8_t *)&v;
+   p[0]=*(code+2);
+   p[1]=*(code+3);
+   p[2]=*(code+4);
+   p[3]=*(code+5);
    
+   uint32_t res = *rm32 - v;
+   (v > *rm32)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   uint8_t * res8 = (uint8_t *)&res;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*rm32 ^ v ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((*rm32 ^ v) & 0x80) && ((*rm32 ^ res) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 /**
@@ -1036,7 +1197,18 @@ void instr_and_r16_32_imm8(uint8_t *code, uint32_t *stack){
  * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
  */
 void instr_cmp_r16_32_imm8(uint8_t *code, uint32_t *stack){
-
+   uint8_t modrm = *(code+1);
+   uint32_t * rm32 = regs[modrm & 0x7];
+   uint8_t v = *(code+2);
+   
+   uint32_t res = *rm32 - v;
+   (v > *rm32)? (SET_FLAG(CF)): (CLEAR_FLAG(CF));//activar CF
+   uint8_t * res8 = (uint8_t *)&res;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((*rm32 ^ v ^ res) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!res)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (res >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((*rm32 ^ v) & 0x80) && ((*rm32 ^ res) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
 }
 
 
@@ -1081,11 +1253,118 @@ void instr_cwde(uint8_t *code, uint32_t *stack){
 }
 
 /**
+ * OPCODE 0xC8
+ */
+void instr_enter(uint8_t *code, uint32_t *stack){
+   uint16_t operand;
+   uint8_t level;
+   uint8_t * p = (uint8_t *)&operand;
+   p[0]=*(code+1);
+   p[1]=*(code+2);
+   level=*(code+3);
+
+   level = level % 32;
+   stack[esp++]=ebp; //push ebp
+   uint32_t fp = esp;
+   if (level){
+      for(int i=1; i< level; i++){
+         ebp-=1;
+         stack[esp++]=ebp; //push ebp
+      }
+      stack[esp++]=fp;
+   }
+   ebp = fp;
+   esp -= operand;
+}
+
+
+/**
  * OPCODE 0xF5
  */
 void instr_cmc(uint8_t *code, uint32_t *stack){
    uint16_t * f = (uint16_t *)&eflags;
    *f ^= 0x1;
+}
+
+/**
+ * OPCODE 0xF6
+ */
+void opcodeF6(uint8_t *code, uint32_t *stack){
+   
+}
+
+/**
+ * OPCODE 0xF6
+ * 
+ * Debe tener un valor de 110 (6) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_div_al_rm8(uint8_t *code, uint32_t *stack){
+   //INTERRUPT 0?
+   uint8_t modrm = *(code+1);
+   uint8_t *rm8 = regs8[modrm & 0x7]; //divisor
+   uint16_t *ax = (uint16_t *)&eax; //dividendo -> 
+   uint16_t vold = *ax;
+   //ah el resto
+   uint8_t r = (uint8_t)(*ax / *rm8);
+   uint8_t *al = (uint8_t *)ax;
+   *al  = r;
+   *(al+1)=vold % *rm8 ;//remainder to ah
+   //flags undefined
+} 
+
+/**
+ * OPCODE 0xF6
+ * 
+ * Debe tener un valor de 111 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_idiv_al_rm8(uint8_t *code, uint32_t *stack){
+   //INTERRUPT 0?
+   uint8_t modrm = *(code+1);
+   uint8_t *rm8 = regs8[modrm & 0x7]; //divisor
+   uint16_t *ax = (uint16_t *)&eax; //dividendo -> 
+   uint16_t vold = *ax;
+   //ah el resto
+   uint8_t r = (uint8_t)(*ax / *rm8);
+   uint8_t *al = (uint8_t *)ax;
+   *al  = r;
+   *(al+1)=vold % *rm8 ;//remainder to ah
+   //flags undefined
+} 
+
+/**
+ * OPCODE 0xF7
+ */
+void opcodeF7(uint8_t *code, uint32_t *stack){
+   
+}
+
+/**
+ * OPCODE 0xF7
+ * 
+ * Debe tener un valor de 110 (6) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_div_eax_rm16_32(uint8_t *code, uint32_t *stack){
+   //INTERRUPT 0?
+   uint8_t modrm = *(code+1);
+   uint32_t *rm32 = regs[modrm & 0x7];
+   uint32_t vold = eax;
+   eax /= *rm32;
+   edx = vold % *rm32;
+   //flags undefined
+}
+/**
+ * OPCODE 0xF7
+ * 
+ * Debe tener un valor de 110 (7) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_idiv_eax_rm16_32(uint8_t *code, uint32_t *stack){
+   //INTERRUPT 0?
+   uint8_t modrm = *(code+1);
+   uint32_t *rm32 = regs[modrm & 0x7];
+   uint32_t vold = eax;
+   eax /= *rm32;
+   edx = vold % *rm32;
+   //flags undefined
 }
 
 /**
@@ -1112,6 +1391,46 @@ void instr_cld(uint8_t *code, uint32_t *stack){
    *f&=0xFBFF;
 }
 
+/**
+ * OPCODE0xFE
+ * 
+ * Debe tener un valor de 001 (1) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_dec_rm8(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint8_t *rm8 = regs8[modrm & 0x7];
+   uint8_t oldv = *rm8;
+   *rm8-=1;
+
+
+   (parity(*rm8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((oldv ^ 0x1 ^ *rm8) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!*rm8)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (*rm8 >> 7) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   (((oldv ^ 0x1) & 0x80) && ((oldv ^ *rm8) & 0x80))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
+
+}
+
+/**
+ * OPCODE 0xFF
+ * 
+ * Debe tener un valor de 001 (1) en el campo reg -> mod-reg-r/m (del byte ModR/M)
+ */
+void instr_dec_rm16_32(uint8_t *code, uint32_t *stack){
+   uint8_t modrm = *(code+1);
+   uint32_t *rm32 = regs[modrm & 0x7];
+
+   uint32_t oldv = *rm32;
+   *rm32-=1;
+
+   uint8_t * res8 = (uint8_t *)rm32;
+   (parity(*res8))? (SET_FLAG(PF)): (CLEAR_FLAG(PF));//activar PF
+   ((oldv ^ 0x1 ^ *rm32) & 0x10)? (SET_FLAG(AF)): (CLEAR_FLAG(AF));//activar AF
+   (!*rm32)?(SET_FLAG(ZF)): (CLEAR_FLAG(ZF));//activar ZF
+   (*rm32 >> 31) ? (SET_FLAG(SF)): (CLEAR_FLAG(SF)); //activar SF
+   ((((oldv ^ 0x1) & 0x80) && ((oldv ^ *rm32) & 0x80)))? (SET_FLAG(OF)): (CLEAR_FLAG(OF)) ;//activa OF
+}
+
 void fillInstr(InstrFunc * i){
    i[0x00]=instr_add_rm8_r8;
    i[0x01]=instr_add_rm16_32_r16_32;
@@ -1130,7 +1449,18 @@ void fillInstr(InstrFunc * i){
    i[0x24]=instr_and_imm8;
    i[0x25]=instr_and_imm16_32;
 
+   i[0x27]=instr_daa;
+
+   i[0x2F]=instr_das;
+
    i[0x37]=instr_aaa;
+   i[0x38]=instr_cmp_rm8_r8;
+   i[0x39]=instr_cmp_rm16_32_r16_32;
+   i[0x3A]=instr_cmp_r8_rm8;
+   i[0x3B]=instr_cmp_r16_32_rm16_32;
+   i[0x3C]=instr_cmp_al_imm8;
+   i[0x3D]=instr_cmp_eax_imm32;
+   
 
    i[0x3F]=instr_aas;
    i[0x40]=instr_inc_eax;
@@ -1175,11 +1505,17 @@ void fillInstr(InstrFunc * i){
    i[0x91]=instr_xchg_ecx_eax;
 
    i[0x98]=instr_cwde;
+   i[0x99]=instr_cdq;
+
+   i[0xC8]=instr_enter;
 
    i[0xF5]=instr_cmc;
    i[0xF8]=instr_clc;
    i[0xFA]=instr_cli;
    i[0xFC]=instr_cld;
+
+   i[0xFE]=instr_dec_rm8;
+   i[0xFF]=instr_dec_rm16_32;
 
    //0x0F A3 - instr_bt_r
    //0x0F BA - instr_bt_imm8
