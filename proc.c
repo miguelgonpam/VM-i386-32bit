@@ -5,9 +5,10 @@
 #include "instructions.h"
 #include "flags.h"
 
-typedef int (*InstrFunc)(uint8_t *, uint32_t *);
+typedef int (*InstrFunc)(uint8_t *);
 
 //REGISTERS
+extern uint8_t * mem;
 extern uint32_t eflags;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 extern uint32_t * regs[8];
@@ -183,62 +184,48 @@ void printAll(){
    printf("\neax    : 0x%08x\t\tecx    : 0x%08x\t\tedx    : 0x%08x\t\tebx    : 0x%08x\nesp    : 0x%08x\t\tebp    : 0x%08x\t\tesi    : 0x%08x\t\tedi    : 0x%08x\neip    : 0x%08x\t\teflags : 0x%08x\t\tcs     : 0x%08x\t\tds     : 0x%08x\nfs     : 0x%08x\t\tss     : 0x%08x\t\tes     : 0x%08x\t\tgs     : 0x%08x\n", eax, ecx, edx, ebx, esp, ebp, esi, edi, eip, eflags,cs, ds, fs, ss, es, gs);
 }
 
+void printStack(){
+   //printf();
+}
+
+void printPointers(){
+   printf("\neax    : 0x%p\t\tecx    : 0x%p\t\tedx    : 0x%p\t\tebx    : 0x%p\nesp    : 0x%p\t\tebp    : 0x%p\t\tesi    : 0x%p\t\tedi    : 0x%p\neip    : 0x%p\t\teflags : 0x%p\t\tcs     : 0x%p\t\tds     : 0x%p\nfs     : 0x%p\t\tss     : 0x%p\t\tes     : 0x%p\t\tgs     : 0x%p\n", &eax, &ecx, &edx, &ebx, &esp, &ebp, &esi, &edi, &eip, &eflags,&cs, &ds, &fs, &ss, &es, &gs);
+}
+
+
 
 int main(){
    //system("clear");execve?
    system("clear");
-
+   initialize();
    //INSTRUCTIONS TABLE
    InstrFunc instr[256];
    fillInstr(instr);
    
    //MEMORY
-   uint8_t * mem = (uint8_t *)malloc(UINT32_MAX * sizeof(uint8_t)); //4GB de memoria del i386 (32 bits)
-   //uint8_t * stack =  (uint32_t * ) (mem + 0xFFF00000); //esp
-   //uint8_t * code = (uint8_t *) mem + 0x084900000; //eip
+   
    esp = 0xFFF00000;
    eip = 0x08490000;
-   * mem = 0xFFF;
-   printf("\n%p %x %x\n", mem, *mem, *(mem+1));
-   //STACK
-   //uint32_t * stack = (uint32_t *)malloc(135168 * sizeof(uint8_t)); //UINT32_MAX en vez de 135168? no, es tamaño de pila, no toda la memoria
-   //uint8_t * code = (uint8_t *)malloc(1024 * sizeof(uint8_t));
+   printPointers();
+
+   *((mem)+(eip))=0xC2;
+   //printf("\nmem   %p 0x%08x",mem+(eip), parse_4B_imm_op(mem));
+   uint8_t * op1, op2;
+   parse_ops_1B(op1, op2);
+   *((mem)+(eip))=0x80;
+   parse_ops_1B(op1, op2);
+   *((mem)+(eip))=0x40;
+   parse_ops_1B(op1, op2);
+   *((mem)+(eip))=0x00;
+   parse_ops_1B(op1, op2);
+
+
+   
    printAll();
-   esp++;
-   printAll();
-   //inc_eax(code, stack);
-   //printAll();
    eax=0xffddccaa;
-   //push_eax(code, stack);
    printAll();
 
-
-   /*
-   eax = 0xFF;
-   printf("eax : 0x%8x\n", eax);
-   uint8_t code[6] ={ 0x81, 0xD0, 0xFF, 0x00, 0x00, 0x00};
-   add_r16_32_imm16_32(code, stack);
-   printf("eax : 0x%8x\n", eax);
-
-
-   ebx = 0;
-   printf("eax:%8x ebx:%8x esp:%u\n", eax, ebx, esp);
-   instr[0x50](&a, stack);
-   printf("eax:%8x ebx:%8x esp:%u\n", eax, ebx, esp);
-   instr[0x5B](&a, stack);
-   printf("eax:%8x ebx:%8x esp:%u\n", eax, ebx, esp);
-   */
    free(mem);
-
-   //CODE
-   //uint8_t * code = (uint8_t *)malloc(3000 * sizeof(uint8_t));
-   //free(code);
-
-   //LIBRARIES
-   //uint8_t * lib1 = (uint8_t *)malloc(3000 * sizeof(uint8_t));
-   //uint8_t * lib2 = (uint8_t *)malloc(3000 * sizeof(uint8_t));
-   //free(lib1);
-   //free(lib2);
 
    return 0;
 
@@ -248,6 +235,7 @@ int main(){
 
    Para hexadecimal: %x
    Para decimal sin signo: %u
+   Para puntero : %p
    uint32_t a = UINT_MAX; // -> direcciones (0xffffffff)
    uint8_t b = UCHAR_MAX; // -> datos (0xff)
    printf("%8x %2x\n", a,b);

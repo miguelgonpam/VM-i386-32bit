@@ -4,14 +4,15 @@
 #ifndef INSTRUCTIONS_H
 #define INSTRUCTIONS_H
 
+void initialize();
 int add_rm8_r8(uint8_t *mem);
 int add_rm16_32_r16_32(uint8_t *mem);
 int add_r8_rm8(uint8_t *mem);
 int add_r16_32_rm16_32(uint8_t *mem);
 int add_imm8(uint8_t *mem);
 int add_imm16_32(uint8_t *mem);
-int push_es(uint8_t *mem)
-int pop_es(uint8_t *mem)
+int push_es(uint8_t *mem);
+int pop_es(uint8_t *mem);
 int opcode0F(uint8_t *mem);
 int bt_r(uint8_t *mem);
 int bts_r(uint8_t *mem);
@@ -76,6 +77,7 @@ int pop_ebp(uint8_t *mem);
 int pop_esi(uint8_t *mem);
 int pop_edi(uint8_t *mem);
 int arpl(uint8_t *mem);
+int push_imm32(uint8_t *mem);
 int opcode80(uint8_t *mem);
 int add_r8_imm8(uint8_t *mem);
 int adc_r8_imm8(uint8_t *mem);
@@ -110,5 +112,8 @@ int dec_rm8(uint8_t *mem);
 int dec_rm16_32(uint8_t *mem);
 uint8_t parity(uint8_t num);
 void toBin(uint8_t c, uint8_t * b);
+uint8_t parse_1B_imm_op();
+uint32_t parse_4B_imm_op();
+void parse_ops_1B();
 
 #endif
