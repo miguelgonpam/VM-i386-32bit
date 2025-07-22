@@ -147,7 +147,8 @@ int xlat (cs_insn *insn);
 int xlatb (cs_insn *insn);
 int xor (cs_insn *insn);
 int mov(cs_insn *insn);
-int reg_val(int reg_id);
+uint32_t reg_val(int reg_id);
 uint32_t eff_addr(x86_op_mem m);
+uint32_t pow_i(uint32_t b, uint32_t exp);
 
 #endif

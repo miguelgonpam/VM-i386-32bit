@@ -1,1 +1,1 @@
-gcc proc.c flags.c instructions.c -o proc -Wall -Wno-return-type
+gcc -o proc proc.c flags.c instr.c -lcapstone -Wno-int-conversion

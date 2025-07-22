@@ -53,8 +53,6 @@ int main(){
    if(!initialize())
       return -1;
 
-   
-
    /* DECODE VARIABLES */
    csh handle;
    cs_insn *insn;

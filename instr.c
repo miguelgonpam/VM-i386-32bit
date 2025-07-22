@@ -16,7 +16,7 @@ extern uint32_t eflags;
 /* REGISTER            INVL,   AH,   AL,   AX,   BH,   BL,   BP,  BPL,   BX,   CH,   CL,   CS,   CX,   DH,   DI,  DIL,   DL,   DS,   DX,  EAX,  EBP,  EBX,  ECX,  EDI,  EDX,  EFLAGS,  EIP,  EIZ,   ES,  ESI,  ESP, FPSW,   FS,   GS,   IP,  RAX,  RBP,  RBX,  RCX,  RDI,  RDX,  RIP,  RIZ,  RSI,  RSP,   SI,  SIL,   SP,  SPL,   SS  */
 /* INDEX                  0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24       25    26    27    28    29    30    31    32    33    34    35    36    37    38    39    40    41    42    43    44    45    46    47    48    49  */
 void * regs[] =       {NULL, &eax, &eax, &eax, &ebx, &ebx, &ebp, NULL, &ebx, &ecx, &ecx,  &cs, &ecx, &edx, &edi, NULL, &edx,  &ds, &edx, &eax, &ebp, &ebx, &ecx, &edi, &edx, &eflags, &eip, NULL,  &es, &esi, &esp, NULL,  &fs,  &gs, &eip, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &esi, NULL, &esp, NULL,  &ss};
-uint8_t regs_size[] = {NULL, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10, NULL, 0x10, 0x08, 0x08, 0x10, 0x10, 0x08, 0x10, NULL, 0x08, 0x10, 0x10, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,    0x20, 0x20, NULL, 0x10, 0x20, 0x20, NULL, 0x10, 0x10, 0x10, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0x10, NULL, 0x10, NULL, 0x10};
+uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x08, 0x08, 0x10, 0x10, 0x08, 0x10,    0, 0x08, 0x10, 0x10, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,    0x20, 0x20,    0, 0x10, 0x20, 0x20,    0, 0x10, 0x10, 0x10,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0, 0x10,    0, 0x10,    0, 0x10};
 
 
 
@@ -350,8 +350,12 @@ int bound(cs_insn *insn){
     void * p = regs[op1.reg];
     uint8_t base = regs_size[op1.reg];
     if (base == 0x10){ /* 16-bit */
-        //in protected mode shouldn't be 16-bit address
-        return -1;
+        uint16_t * r = (uint16_t *) p;
+        rsrc1 = *((uint16_t *)(mem + eff_addr(op2.mem))); /* Offset 0 bytes with m32&32 */
+        rsrc2 = *(((uint16_t *)(mem + eff_addr(op2.mem)))+1); /* Offset 2 bytes with m32&32*/
+        if( *r < rsrc1 || *r > rsrc2){
+            return -5; /* Interrupt 5 */
+        }
     }else{             /* 32-bit */
         uint32_t * r = (uint32_t *) p;
         rsrc1 = *((uint32_t *)(mem + eff_addr(op2.mem))); /* Offset 0 bytes with m32&32 */
@@ -458,6 +462,293 @@ int bsr(cs_insn *insn){
     }
 }
 
+/**
+ *  BT. Bit Test.
+ *
+ *  Opcode 0x0F A3, 0x0F BA /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF as showed.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int bt(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val1, val2;
+    uint8_t b;
+    if (op1.type == X86_OP_REG){ /* REG */
+        b = regs_size[op1.reg];
+        if (b == 0x1){
+            val1 = (uint32_t)*((uint16_t *)regs[op1.reg]);
+        }else{
+            val1 = *((uint32_t *)regs[op1.reg]);
+        }
+        
+    }else{ /* MEM */
+        val1 = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        b = 0x20;
+    }
+
+    if (op2.type == X86_OP_REG){ /* REG */
+        b = regs_size[op2.reg];
+        if (b == 0x1){
+            val2 = (uint32_t)*((uint16_t *)regs[op2.reg]);
+        }else{
+            val2 = *((uint32_t *)regs[op2.reg]);
+        }
+    }else{ /* IMM */
+        val2 = (uint32_t) op2.imm;
+        b = 0x8;
+    }
+    (val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+    return 0;
+}
+
+/**
+ *  BTC. Bit Test and Complement.
+ *
+ *  Opcode 0x0F BB, 0x0F BA /7.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF as showed.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int btc(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val2;
+    uint8_t b;
+    
+
+    if (op2.type == X86_OP_REG){ /* REG */
+        b = regs_size[op2.reg];
+        if (b == 0x1){
+            val2 = (uint32_t)*((uint16_t *)regs[op2.reg]);
+        }else{
+            val2 = *((uint32_t *)regs[op2.reg]);
+        }
+    }else{ /* IMM */
+        val2 = (uint32_t) op2.imm;
+        b = 0x8;
+    }
+
+    if (op1.type == X86_OP_REG){ /* REG */
+        b = regs_size[op1.reg];
+        if (b == 0x1){
+            uint16_t * val1 = ((uint16_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 ^= pow_i(2, (val2 % b));
+        }else{
+            uint32_t * val1 = ((uint32_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 ^= pow_i(2, (val2 % b));
+        }
+        
+    }else{ /* MEM */
+        uint32_t * val1 = ((uint32_t *)(mem+eff_addr(op1.mem)));
+        b = 0x20;
+        (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+        *val1 ^= pow_i(2, (val2 % b));
+    }
+    
+    return 0;
+}
+
+/**
+ *  BTR. Bit Test and Reset.
+ *
+ *  Opcode 0x0F B3, 0x0F BA /6.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF as showed.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int btr(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val2;
+    uint8_t b;
+    
+
+    if (op2.type == X86_OP_REG){ /* REG */
+        b = regs_size[op2.reg];
+        if (b == 0x1){
+            val2 = (uint32_t)*((uint16_t *)regs[op2.reg]);
+        }else{
+            val2 = *((uint32_t *)regs[op2.reg]);
+        }
+    }else{ /* IMM */
+        val2 = (uint32_t) op2.imm;
+        b = 0x8;
+    }
+
+    if (op1.type == X86_OP_REG){ /* REG */
+        b = regs_size[op1.reg];
+        if (b == 0x1){
+            uint16_t * val1 = ((uint16_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 &= (0xFFFF - pow_i(2, (val2 % b)));
+        }else{
+            uint32_t * val1 = ((uint32_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 &= (0xFFFFFFFF - pow_i(2, (val2 % b)));
+        }
+        
+    }else{ /* MEM */
+        uint32_t * val1 = ((uint32_t *)(mem+eff_addr(op1.mem)));
+        b = 0x20;
+        (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+        *val1 &= (0xFFFFFFFF - pow_i(2, (val2 % b)));
+    }
+    
+    return 0;
+}
+
+/**
+ *  BTS. Bit Test and Set.
+ *
+ *  Opcode 0x0F AB, 0x0F BA /5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF as showed.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int bts(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val2;
+    uint8_t b;
+    
+
+    if (op2.type == X86_OP_REG){ /* REG */
+        b = regs_size[op2.reg];
+        if (b == 0x1){
+            val2 = (uint32_t)*((uint16_t *)regs[op2.reg]);
+        }else{
+            val2 = *((uint32_t *)regs[op2.reg]);
+        }
+    }else{ /* IMM */
+        val2 = (uint32_t) op2.imm;
+        b = 0x8;
+    }
+
+    if (op1.type == X86_OP_REG){ /* REG */
+        b = regs_size[op1.reg];
+        if (b == 0x1){
+            uint16_t * val1 = ((uint16_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 |= pow_i(2, (val2 % b));
+        }else{
+            uint32_t * val1 = ((uint32_t *)regs[op1.reg]);
+            (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+            *val1 |= pow_i(2, (val2 % b));
+        }
+        
+    }else{ /* MEM */
+        uint32_t * val1 = ((uint32_t *)(mem+eff_addr(op1.mem)));
+        b = 0x20;
+        (*val1 >> (val2 % b))?set_Flag(CF):clear_Flag(CF);
+        *val1 |= pow_i(2, (val2 % b));
+    }
+    
+    return 0;
+}
+
+int call(cs_insn *insn){
+    return 0;
+}
+
+/**
+ *  CBW. Convert Byte to Word.
+ *
+ *  Opcode 0x98.
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cbw(cs_insn *insn){
+    uint8_t * al = (uint8_t *)&eax;
+    uint16_t * ax = (uint16_t *)&eax;
+
+    (*al >> 7)?(*ax |=(0xFF00 | *al)):(*ax &= (0x00FF & *al));
+    return 0;
+}
+
+/**
+ *  CWDE. Convert Word to Doubleword.
+ *
+ *  Opcode 0x98.
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cwde(cs_insn *insn){
+    uint16_t * ax = (uint16_t *)&eax;
+
+    (*ax >> 15)?(eax |=(0xFFFF0000 | *ax)):(eax &=(0x0000FFFF & *ax));
+    return 0;
+}
+
+/**
+ *  CLC. Clear Carry Flag.
+ *
+ *  Opcode 0xF8.
+ *
+ *  No exceptions.
+ *
+ *  CF = 0.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int clc(cs_insn *insn){
+    clear_Flag(CF);
+    return 0;
+}
+
+/**
+ *  CLD. Clear Direction Flag.
+ *
+ *  Opcode 0xFC.
+ *
+ *  No exceptions.
+ *
+ *  DF = 0.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cld(cs_insn *insn){
+    clear_Flag(DF); /* After CLD is executed, string operations will increment the index registers (SI and/or DI) that they use. ?*/
+    return 0;
+}
+
+int cli(cs_insn *insn){
+
+}
+
+
+
 int mov(cs_insn *insn){
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
@@ -493,6 +784,7 @@ int mov(cs_insn *insn){
         *((uint32_t *)(mem+eff_addr(op1.mem))) = val;
     }
     //op1 cant be X86_OP_IMM
+    return 0;
 }
 
 int sub(cs_insn *insn){
@@ -531,6 +823,7 @@ int sub(cs_insn *insn){
         *((uint32_t *)(mem+eff_addr(op1.mem))) -= val;
     }
     //op1 cant be X86_OP_IMM   
+    return 0;
 }
 
 int or(cs_insn *insn){
@@ -569,30 +862,30 @@ int or(cs_insn *insn){
         *((uint32_t *)(mem+eff_addr(op1.mem))) |= val;
     }
     //op1 cant be X86_OP_IMM
-    
+    return 0;
 }
 
 
 
-int reg_val(int reg_id){
+uint32_t reg_val(int reg_id){
     if (reg_id < 0 || reg_id > 49){
         return -1;
     }
     void * p = regs[reg_id];
     uint8_t base = regs_size[reg_id];
-    if (p != NULL && base != NULL){
+    if (p != NULL && base != 0){
         switch(base){
             case 0x8:
-                return *((uint8_t *) p);
+                return (uint32_t)*((uint8_t *) p);
                 break;
             case 0x10:
-                return *((uint16_t *) p);
+                return (uint32_t)*((uint16_t *) p);
                 break;
             case 0x20:
-                return *((uint32_t *) p);
+                return (uint32_t)*((uint32_t *) p);
                 break;
             default:
-                return *((uint32_t *) p);
+                return (uint32_t)*((uint32_t *) p);
                 break;
         }
     }else{
@@ -615,4 +908,13 @@ uint32_t eff_addr(x86_op_mem m){
 
     return segment + base + index*scale + disp;
 
+}
+
+uint32_t pow_i(uint32_t b, uint32_t exp){
+    uint32_t result = 1;
+    while (exp > 0) {
+        result *= b;
+        exp--;
+    }
+    return result;
 }
