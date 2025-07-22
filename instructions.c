@@ -1474,7 +1474,7 @@ uint32_t parse_4B_imm_op(){
 
 void parse_ops_1B(uint8_t *op1, uint8_t *op2){
    uint8_t modrm = *(mem+(eip++));
-   uint8_t dmode = (modrm >> 6);
+   uint8_t dmode = (modrm & 0b11000000)>> 6;
 
    if (dmode == 0x3){      //0b11
       uint8_t r1 = modrm & 0b00000111;
