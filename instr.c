@@ -378,7 +378,6 @@ int bsf(cs_insn *insn){
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
 
-    if (op1.type != X86_OP_REG){return -1;} /* op1 must be a register*/
     uint32_t val;                           /* extract op2 value*/
     if (op2.type == X86_OP_REG){
         val = reg_val(op2.reg);
@@ -387,7 +386,76 @@ int bsf(cs_insn *insn){
     }else if (op2.type == X86_OP_MEM){
         val = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
+    if(!val){set_Flag(ZF);return 0;}
+    if (op1.type != X86_OP_REG){return -1;} /* op1 must be a register*/
+    else{
+        uint8_t base = regs_size[op1.reg];
+        if (base == 0x10){ /* 16-bit */
+            uint16_t * p = regs[op1.reg];
+            int temp = 0;
+            clear_Flag(ZF);
+            while ((val >> temp) & 0x1 == 0) {
+                temp++;
+                *p=temp;
+            }
+        }else{             /* 32-bit */
+            uint32_t * p = regs[op1.reg];
+            int temp = 0;
+            clear_Flag(ZF);
+            while ((val >> temp) & 0x1 == 0) {
+                temp++;
+                *p=temp;
+            }
+        }
+    }
+}
 
+/**
+ *  BSR. Bit Scan Reverse.
+ *
+ *  Opcode 0x0F BD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  ZF as showed.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int bsr(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val;                           /* extract op2 value*/
+    if (op2.type == X86_OP_REG){
+        val = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        val = op2.imm;
+    }else if (op2.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+    if(!val){set_Flag(ZF);return 0;}
+    if (op1.type != X86_OP_REG){return -1;} /* op1 must be a register*/
+    else{
+        uint8_t base = regs_size[op1.reg];
+        if (base == 0x10){ /* 16-bit */
+            uint16_t * p = regs[op1.reg];
+            int temp = 15;
+            clear_Flag(ZF);
+            while ((val >> temp) & 0x1 == 0) {
+                temp--;
+                *p=temp;
+            }
+        }else{             /* 32-bit */
+            uint32_t * p = regs[op1.reg];
+            int temp = 31;
+            clear_Flag(ZF);
+            while ((val >> temp) & 0x1 == 0) {
+                temp--;
+                *p=temp;
+            }
+        }
+    }
 }
 
 int mov(cs_insn *insn){
