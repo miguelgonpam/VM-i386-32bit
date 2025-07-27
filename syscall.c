@@ -3,6 +3,7 @@
 #include <poll.h>
 #include <grp.h>
 #include <sys/syscall.h>
+#include <sys/fsuid.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -281,7 +282,20 @@ uint32_t do_pwrite64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
 uint32_t do_readv(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number19
 uint32_t do_writev(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number20
 uint32_t do_access(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number21
-uint32_t do_pipe(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number22
+
+/**
+ * pipe, pipe2 - create pipe
+ *
+ * Syscall number 22
+ *
+ * int pipe(int pipefd[2]);
+ */
+uint32_t do_pipe(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    int * pipefd = (int *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_pipe, pipefd);
+}
+
+
 uint32_t do_select(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number23
 uint32_t do_sched_yield(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number24
 uint32_t do_mremap(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number25
@@ -555,8 +569,23 @@ uint32_t do_setgroups(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *ar
  *
  *  int setresuid(uid_t ruid, uid_t euid, uid_t suid);
  */
-uint32_t do_setresuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number117
-uint32_t do_getresuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number118
+uint32_t do_setresuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_setresuid, (uid_t)*arg1, (uid_t)*arg2, (uid_t)*arg3);
+}
+
+/**
+ *  getresuid, getresgid - get real, effective and saved user/group IDs
+ *
+ *  Syscall number 118
+ *
+ *  int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid);
+ */
+uint32_t do_getresuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    uid_t * ruid = (uid_t *)(mem+*arg1);
+    uid_t * euid = (uid_t *)(mem+*arg2);
+    uid_t * suid = (uid_t *)(mem+*arg3);
+    return (uint32_t)syscall(SYS_getresuid, ruid, euid, suid);
+}
 
 /**
  *  setresuid, setresgid - set real, effective and saved user or group ID
@@ -565,8 +594,23 @@ uint32_t do_getresuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *ar
  *
  *  int setresgid(gid_t rgid, gid_t egid, gid_t sgid);
  */
-uint32_t do_setresgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number119
-uint32_t do_getresgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number120
+uint32_t do_setresgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_setresgid, (gid_t)*arg1, (gid_t)*arg2, (gid_t)*arg3);
+}
+
+/**
+ *  getresuid, getresgid - get real, effective and saved user/group IDs
+ *
+ *  Syscall number 120
+ *
+ *  int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid);
+ */
+uint32_t do_getresgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    gid_t * rgid = (gid_t *)(mem+*arg1);
+    gid_t * egid = (gid_t *)(mem+*arg2);
+    gid_t * sgid = (gid_t *)(mem+*arg3);
+    return (uint32_t)syscall(SYS_getresgid, rgid, egid, sgid);
+}
 
 /**
  *  setpgid, getpgid, setpgrp, getpgrp - set/get process group
@@ -579,9 +623,39 @@ uint32_t do_getpgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3
     return (uint32_t)syscall(SYS_getpgid, (pid_t)*arg1);
 }
 
-uint32_t do_setfsuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number122
-uint32_t do_setfsgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number123
-uint32_t do_getsid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number124
+/**
+ *  setfsuid - set user identity used for filesystem checks
+ *
+ *  Syscall number 122
+ *
+ *  int setfsuid(uid_t fsuid);
+ */
+uint32_t do_setfsuid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_setfsuid, (uid_t)*arg1);
+}
+
+/**
+ *  setfsgid - set group identity used for filesystem checks
+ *
+ *  Syscall number 123
+ *
+ *  int setfsgid(uid_t fsgid);
+ */
+uint32_t do_setfsgid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_setfsgid, (uid_t)*arg1);
+}
+
+/**
+ *  getsid - get session ID
+ *
+ *  Syscall number 124
+ *
+ *   pid_t getsid(pid_t pid);
+ */
+uint32_t do_getsid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_getsid, (pid_t)*arg1);
+}
+
 uint32_t do_capget(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number125
 uint32_t do_capset(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number126
 uint32_t do_rt_sigpending(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number127
