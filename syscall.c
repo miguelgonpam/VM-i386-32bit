@@ -1,28 +1,36 @@
+#define _GNU_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <stdint.h>
 #include <unistd.h>
 #include <poll.h>
 #include <grp.h>
 #include <sys/uio.h>
+#include <sys/io.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/fsuid.h>
 #include <sys/types.h>
+#include <sys/swap.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/shm.h>
 #include <sys/file.h>
 #include <sys/resource.h>
 #include <sys/sem.h>
 #include <sys/msg.h>
+#include <sys/xattr.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
-#define _GNU_SOURCE
 #include <signal.h>
+#include <time.h>
 
 #include "instr.h"
+
 
 typedef struct stat32 {
     uint32_t st_dev;
@@ -1393,7 +1401,7 @@ uint32_t do_mlockall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
 /**
  *  mlock, mlock2, munlock, mlockall, munlockall - lock and unlock memory
  *
- *  Syscall number 151
+ *  Syscall number 152
  *
  *  int munlockall(void);
  */
@@ -1401,27 +1409,195 @@ uint32_t do_munlockall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *a
     return (uint32_t)syscall(SYS_munlockall);
 }
 
-uint32_t do_vhangup(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number153
-uint32_t do_modify_ldt(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number154
-uint32_t do_pivot_root(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number155
+/**
+ *  vhangup - virtually hangup the current terminal
+ *
+ *  Syscall number 153
+ *
+ *  int vhangup(void);
+ */
+uint32_t do_vhangup(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_vhangup);
+}
+
+/**
+ *  modify_ldt - get or set a per-process LDT entry
+ *
+ *  Syscall number 154
+ *
+ *  int syscall(SYS_modify_ldt, int func, void ptr[.bytecount], unsigned long bytecount); ???
+ */
+uint32_t do_modify_ldt(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    void * ptr = (void *)(mem + *arg2);
+    return (uint32_t)syscall(SYS_modify_ldt, (int)*arg1, ptr, (unsigned long)*arg3);
+}
+
+/**
+ *  pivot_root - change the root mount
+ *
+ *  Syscall number 155
+ *
+ *  int syscall(SYS_pivot_root, const char *new_root, const char *put_old);
+ */
+uint32_t do_pivot_root(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char *new_root = (void *)(mem + *arg1);
+    const char *put_old = (void *)(mem + *arg2);
+    return (uint32_t)syscall(SYS_pivot_root, new_root, put_old);
+}
+
 uint32_t do__sysctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number156
 uint32_t do_prctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number157
 uint32_t do_arch_prctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number158
 uint32_t do_adjtimex(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number159
 uint32_t do_setrlimit(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number160
-uint32_t do_chroot(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number161
-uint32_t do_sync(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number162
-uint32_t do_acct(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number163
+
+/**
+ *  chroot - change root directory
+ *
+ *  Syscall number 161
+ *
+ *  int chroot(const char *path);
+ */
+uint32_t do_chroot(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem + *arg1);
+    return (uint32_t)syscall(SYS_chroot, path);
+}
+
+/**
+ *  sync, syncfs - commit filesystem caches to disk
+ *
+ *  Syscall number 162
+ *
+ *  void sync(void);
+ */
+uint32_t do_sync(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_sync);
+} 
+
+/**
+ *  acct - switch process accounting on or off
+ *
+ *  Syscall number 163
+ *
+ *  int acct(const char *_Nullable filename);
+ */
+uint32_t do_acct(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * filename = (*arg1)?(char *)(mem+*arg1):NULL;
+    return (uint32_t)syscall(SYS_acct, filename);
+}
+
 uint32_t do_settimeofday(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number164
-uint32_t do_mount(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number165
-uint32_t do_umount2(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number166
-uint32_t do_swapon(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number167
-uint32_t do_swapoff(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number168
-uint32_t do_reboot(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number169
-uint32_t do_sethostname(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number170
-uint32_t do_setdomainname(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number171
-uint32_t do_iopl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number172
-uint32_t do_ioperm(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number173
+
+/**
+ *  mount - mount filesystem
+ *
+ *  Syscall number 165
+ *
+ *  int mount(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *_Nullable data);
+ */
+uint32_t do_mount(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * source = (char *)(mem+*arg1);
+    const char * target = (char *)(mem+*arg2);
+    const char * filesystemtype = (char *)(mem+*arg3);
+    const char * data = (*arg5)?(char *)(mem+*arg5):NULL;
+
+    return (uint32_t)syscall(SYS_mount, source, target, filesystemtype, (unsigned long)*arg4, data);
+}
+
+/**
+ *  umount, umount2 - unmount filesystem
+ *
+ *  Syscall number 166
+ *
+ *  int umount2(const char *target, int flags);
+ */
+uint32_t do_umount2(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * target = (char *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_umount2, target, (int)*arg2);
+}
+
+/**
+ *  swapon, swapoff - start/stop swapping to file/device
+ *
+ *  Syscall number 167
+ *
+ *  int swapon(const char *path, int swapflags);
+ */
+uint32_t do_swapon(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_swapon, path, (int)*arg2);
+}
+
+/**
+ *  swapon, swapoff - start/stop swapping to file/device
+ *
+ *  Syscall number 168
+ *
+ *  int swapoff(const char *path);
+ */
+uint32_t do_swapoff(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_swapoff, path);
+}
+
+/**
+ *  reboot - reboot or enable/disable Ctrl-Alt-Del
+ *
+ *  Syscall number 169
+ *
+ *  int reboot(int op);
+ */
+uint32_t do_reboot(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_reboot, (int)*arg1);
+}
+
+/**
+ *  gethostname, sethostname - get/set hostname
+ *
+ *  Syscall number 170
+ *
+ *  int sethostname(const char *name, size_t len);
+ */
+uint32_t do_sethostname(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * name = (char *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_sethostname, name, (size_t)*arg2);
+}
+
+/**
+ *  getdomainname, setdomainname - get/set NIS domain name
+ *
+ *  Syscall number 171
+ *
+ *  int setdomainname(const char *name, size_t len);
+ */
+uint32_t do_setdomainname(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * name = (char *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_setdomainname, name, (size_t)*arg2);
+}
+
+/**
+ *  iopl - change I/O privilege level
+ *
+ *  Syscall number 172
+ *
+ *  [[deprecated]] int iopl(int level);
+ */
+uint32_t do_iopl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_iopl, (int)*arg1);
+}
+
+/**
+ *  ioperm - set port input/output permissions
+ *
+ *  Syscall number 173
+ *
+ *  int ioperm(unsigned long from, unsigned long num, int turn_on);
+ */
+uint32_t do_ioperm(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_ioperm, (unsigned long)*arg1, (unsigned long)*arg2, (int)*arg3);
+}
+
+
 uint32_t do_create_module(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number174
 uint32_t do_init_module(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number175
 uint32_t do_delete_module(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number176
@@ -1429,27 +1605,251 @@ uint32_t do_get_kernel_syms(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32
 uint32_t do_query_module(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number178
 uint32_t do_quotactl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number179
 uint32_t do_nfsservctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number180
-uint32_t do_getpmsg(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number181
-uint32_t do_putpmsg(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number182
-uint32_t do_afs_syscall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number183
-uint32_t do_tuxcall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number184
-uint32_t do_security(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number185
-uint32_t do_gettid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number186
-uint32_t do_readahead(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number187
-uint32_t do_setxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number188
-uint32_t do_lsetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number189
-uint32_t do_fsetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number190
-uint32_t do_getxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number191
-uint32_t do_lgetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number192
-uint32_t do_fgetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number193
-uint32_t do_listxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number194
-uint32_t do_llistxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number195
-uint32_t do_flistxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number196
-uint32_t do_removexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number197
-uint32_t do_lremovexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number198
-uint32_t do_fremovexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number199
-uint32_t do_tkill(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number200
-uint32_t do_time(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number201
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 181
+ */
+uint32_t do_getpmsg(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){}
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 182
+ */
+uint32_t do_putpmsg(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){}
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 183
+ */
+uint32_t do_afs_syscall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){}
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 184
+ */
+uint32_t do_tuxcall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} 
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 185
+ */
+uint32_t do_security(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){}
+
+/**
+ *  gettid - get thread identification
+ *
+ *  Syscall number 186
+ *
+ *  pid_t gettid(void);
+ */
+uint32_t do_gettid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_gettid);
+}
+
+/**
+ *  readahead - initiate file readahead into page cache
+ *
+ *  Syscall number 187
+ *
+ *  ssize_t readahead(int fd, off_t offset, size_t count);
+ */
+uint32_t do_readahead(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_readahead, (int)*arg1, (off_t)*arg2, (size_t)*arg3);
+}
+
+/**
+ *  readahead - initiate file readahead into page cache
+ *
+ *  Syscall number 188
+ *
+ *  int setxattr(const char *path, const char *name, const void value[.size], size_t size, int flags);
+ */
+uint32_t do_setxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    const void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_setxattr, path, name, value, (size_t)*arg4, (int)*arg5);
+}
+
+/**
+ *  readahead - initiate file readahead into page cache
+ *
+ *  Syscall number 189
+ *
+ *  int lsetxattr(const char *path, const char *name, const void value[.size], size_t size, int flags);
+ */
+uint32_t do_lsetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    const void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_lsetxattr, path, name, value, (size_t)*arg4, (int)*arg5);
+}
+
+/**
+ *  readahead - initiate file readahead into page cache
+ *
+ *  Syscall number 190
+ *
+ *  int fsetxattr(int fd, const char *name, const void value[.size], size_t size, int flags);
+ */
+uint32_t do_fsetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * name = (char *)(mem+*arg2);
+    const void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_fsetxattr, (int)*arg1, name, value, (size_t)*arg4, (int)*arg5);
+}
+
+/**
+ *  getxattr, lgetxattr, fgetxattr - retrieve an extended attribute value
+ *
+ *  Syscall number 191
+ *
+ *  ssize_t getxattr(const char *path, const char *name, void value[.size], size_t size);
+ */
+uint32_t do_getxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_getxattr, path, name, value, (size_t)*arg4);
+}
+
+/**
+ *  getxattr, lgetxattr, fgetxattr - retrieve an extended attribute value
+ *
+ *  Syscall number 192
+ *
+ *  ssize_t lgetxattr(const char *path, const char *name, void value[.size], size_t size);
+ */
+uint32_t do_lgetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_lgetxattr, path, name, value, (size_t)*arg4);
+}
+
+/**
+ *  getxattr, lgetxattr, fgetxattr - retrieve an extended attribute value
+ *
+ *  Syscall number 193
+ *
+ *  ssize_t fgetxattr(int fd, const char *name, void value[.size], size_t size);
+ */
+uint32_t do_fgetxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * name = (char *)(mem+*arg2);
+    void * value = (void *)(mem+*arg3);
+
+    return (uint32_t)syscall(SYS_fgetxattr, (int)*arg1, name, value, (size_t)*arg4);
+}
+
+/**
+ *  listxattr, llistxattr, flistxattr - list extended attribute names
+ *
+ *  Syscall number 194
+ *
+ *  ssize_t listxattr(const char *path, char *_Nullable list, size_t size);
+ */
+uint32_t do_listxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    char * list = (*arg2)?(char *)(mem+*arg2):NULL;
+    return (uint32_t)syscall(SYS_listxattr, path, list, (size_t)*arg3);
+}
+
+/**
+ *  listxattr, llistxattr, flistxattr - list extended attribute names
+ *
+ *  Syscall number 195
+ *
+ *  ssize_t llistxattr(const char *path, char *_Nullable list, size_t size);
+ */
+uint32_t do_llistxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    char * list = (*arg2)?(char *)(mem+*arg2):NULL;
+    return (uint32_t)syscall(SYS_llistxattr, path, list, (size_t)*arg3);
+}
+
+/**
+ *  listxattr, llistxattr, flistxattr - list extended attribute names
+ *
+ *  Syscall number 196
+ *
+ *  ssize_t flistxattr(int fd, char *_Nullable list, size_t size);
+ */
+uint32_t do_flistxattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    char * list = (*arg2)?(char *)(mem+*arg2):NULL;
+    return (uint32_t)syscall(SYS_llistxattr, (int)*arg1, list, (size_t)*arg3);
+}
+
+/**
+ *  removexattr, lremovexattr, fremovexattr - remove an extended attribute
+ *
+ *  Syscall number 197
+ *
+ *  int removexattr(const char *path, const char *name);
+ */
+uint32_t do_removexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_removexattr, path, name);
+}
+
+/**
+ *  removexattr, lremovexattr, fremovexattr - remove an extended attribute
+ *
+ *  Syscall number 198
+ *
+ *  int lremovexattr(const char *path, const char *name);
+ */
+uint32_t do_lremovexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * path = (char *)(mem+*arg1);
+    const char * name = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_lremovexattr, path, name);
+}
+
+/**
+ *  removexattr, lremovexattr, fremovexattr - remove an extended attribute
+ *
+ *  Syscall number 199
+ *
+ *  int fremovexattr(int fd, const char *name);
+ */
+uint32_t do_fremovexattr(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * name = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_lremovexattr, (int)*arg1, name);
+}
+
+/**
+ *  tkill, tgkill - send a signal to a thread
+ *
+ *  Syscall number 200
+ *
+ *  [[deprecated]] int syscall(SYS_tkill, pid_t tid, int sig);
+ */
+uint32_t do_tkill(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_tkill, (pid_t)*arg1, (int) *arg2);
+}
+
+/**
+ *  time - get time in seconds
+ *
+ *  Syscall number 201
+ *
+ *  time_t time(time_t *_Nullable tloc);
+ */
+uint32_t do_time(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    time_t tloc = (*arg1)?(time_t)*arg1:NULL; /* Nullable */
+    return (uint32_t)syscall(SYS_time, tloc);
+}
+
 uint32_t do_futex(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number202
 uint32_t do_sched_setaffinity(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number203
 uint32_t do_sched_getaffinity(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number204
@@ -1461,15 +1861,70 @@ uint32_t do_io_submit(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *ar
 uint32_t do_io_cancel(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number210
 uint32_t do_get_thread_area(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number211
 uint32_t do_lookup_dcookie(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number212
-uint32_t do_epoll_create(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number213
+
+/**
+ *  epoll_create, epoll_create1 - open an epoll file descriptor
+ *
+ *  Syscall number 213
+ *
+ *  int epoll_create(int size);
+ */
+uint32_t do_epoll_create(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_epoll_create, (int)*arg1); 
+}
+
 uint32_t do_epoll_ctl_old(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number214
 uint32_t do_epoll_wait_old(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number215
-uint32_t do_remap_file_pages(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number216
+
+/**
+ *  remap_file_pages - create a nonlinear file mapping
+ *
+ *  Syscall number 216
+ *
+ *  [[deprecated]] int remap_file_pages(void addr[.size], size_t size, int prot, size_t pgoff, int flags);
+ */
+uint32_t do_remap_file_pages(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    void * addr = (void *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_remap_file_pages, addr, (size_t)*arg2, (int)*arg3, (size_t)*arg4, (int)*arg5);
+}
 uint32_t do_getdents64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number217
-uint32_t do_set_tid_address(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number218
-uint32_t do_restart_syscall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number219
+
+/**
+ *  set_tid_address - set pointer to thread ID
+ *
+ *  Syscall number 218
+ *
+ *  pid_t syscall(SYS_set_tid_address, int *tidptr);
+ */
+uint32_t do_set_tid_address(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    int * tidptr = (int *)(mem+*arg1);
+    return (uint32_t)syscall(SYS_set_tid_address, tidptr);
+}
+
+/**
+ *  restart_syscall - restart a system call after interruption by a stop signal
+ *
+ *  Syscall number 219
+ *
+ *  long restart_syscall(void);
+ */
+uint32_t do_restart_syscall(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_restart_syscall);
+}
+
+
 uint32_t do_semtimedop(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number220
-uint32_t do_fadvise64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number221
+
+/**
+ *  posix_fadvise - predeclare an access pattern for file data
+ *
+ *  Syscall number 221
+ *
+ *  int posix_fadvise(int fd, off_t offset, off_t len, int advice);
+ */
+uint32_t do_fadvise64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_fadvise_64, (int)*arg1, (off_t)*arg2, (off_t)*arg3, (int)*arg4);
+}
 uint32_t do_timer_create(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number222
 uint32_t do_timer_settime(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number223
 uint32_t do_timer_gettime(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number224
@@ -1479,12 +1934,41 @@ uint32_t do_clock_settime(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t
 uint32_t do_clock_gettime(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number228
 uint32_t do_clock_getres(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number229
 uint32_t do_clock_nanosleep(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number230
-uint32_t do_exit_group(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number231
+
+/**
+ *  exit_group - exit all threads in a process
+ *
+ *  Syscall number 231
+ *
+ *  [[noreturn]] void syscall(SYS_exit_group, int status);
+ */
+uint32_t do_exit_group(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_exit_group, (int)*arg1);
+}
+
+
 uint32_t do_epoll_wait(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number232
 uint32_t do_epoll_ctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number233
-uint32_t do_tgkill(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number234
+
+/**
+ *  tkill, tgkill - send a signal to a thread
+ *
+ *  Syscall number 234
+ *
+ *  int tgkill(pid_t tgid, pid_t tid, int sig);
+ */
+uint32_t do_tgkill(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_tgkill, (pid_t)*arg1, (pid_t)*arg2, (int)*arg3);
+}
+
 uint32_t do_utimes(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number235
-uint32_t do_vserver(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number236
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * Syscall number 236
+ */
+uint32_t do_vserver(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){}
 uint32_t do_mbind(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number237
 uint32_t do_set_mempolicy(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number238
 uint32_t do_get_mempolicy(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number239
@@ -1530,23 +2014,141 @@ uint32_t do_openat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
 }
 
 
+/**
+ *  mkdir, mkdirat - create a directory
+ *
+ *  Syscall number 258
+ *
+ *  int mkdirat(int dirfd, const char *pathname, mode_t mode);
+ */
+uint32_t do_mkdirat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_mkdirat, (int)*arg1, pathname, (mode_t)*arg3);
+}
 
-uint32_t do_mkdirat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number258
-uint32_t do_mknodat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number259
-uint32_t do_fchownat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number260
+/**
+ *  mknod, mknodat - create a special or ordinary file
+ *
+ *  Syscall number 259
+ *
+ *  int mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev);
+ */
+uint32_t do_mknodat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_mknodat, (int)*arg1, pathname, (mode_t)*arg3, (dev_t)*arg4);
+}
+
+/**
+ *  chown, fchown, lchown, fchownat - change ownership of a file
+ *
+ *  Syscall number 260
+ *
+ *  int fchownat(int dirfd, const char *pathname, uid_t owner, gid_t group, int flags);
+ */
+uint32_t do_fchownat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_fchownat, (int)*arg1, pathname, (uid_t)*arg3, (gid_t)*arg4, (int)*arg5);
+}
+
 uint32_t do_futimesat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number261
 uint32_t do_newfstatat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number262
-uint32_t do_unlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number263
-uint32_t do_renameat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number264
-uint32_t do_linkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number265
-uint32_t do_symlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number266
-uint32_t do_readlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number267
-uint32_t do_fchmodat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number268
-uint32_t do_faccessat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number269
+
+/**
+ *  unlink, unlinkat - delete a name and possibly the file it refers to
+ *
+ *  Syscall number 263
+ *
+ *  int unlinkat(int dirfd, const char *pathname, int flags);
+ */
+uint32_t do_unlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_unlinkat, (int)*arg1, pathname, (int)*arg3);
+}
+
+/**
+ *  rename, renameat, renameat2 - change the name or location of a file
+ *
+ *  Syscall number 264
+ *
+ *  int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
+ */
+uint32_t do_renameat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * oldpath = (char *)(mem+*arg2);
+    const char * newpath = (char *)(mem+*arg4);
+    return (uint32_t)syscall(SYS_renameat, (int)*arg1, oldpath, (int)*arg3, newpath);
+}
+
+/**
+ *  link, linkat - make a new name for a file
+ *
+ *  Syscall number 265
+ *
+ *  int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
+ */
+uint32_t do_linkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * oldpath = (char *)(mem+*arg2);
+    const char * newpath = (char *)(mem+*arg4);
+    return (uint32_t)syscall(SYS_linkat, (int)*arg1, oldpath, (int)*arg3, newpath, (int)*arg5);
+}
+
+/**
+ *  symlink, symlinkat - make a new name for a file
+ *
+ *  Syscall number 266
+ *
+ *  int symlinkat(const char *target, int newdirfd, const char *linkpath);
+ */
+uint32_t do_symlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * target = (char *)(mem+*arg1);
+    const char * linkpath = (char *)(mem+*arg3);
+    return (uint32_t)syscall(SYS_symlinkat, target, (int)*arg2, linkpath);
+}
+
+/**
+ *  readlink, readlinkat - read value of a symbolic link
+ *
+ *  Syscall number 267
+ *
+ *  ssize_t readlinkat(int dirfd, const char *restrict pathname, char *restrict buf, size_t bufsiz);
+ */
+uint32_t do_readlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    char * restrict buf = (char *)(mem+arg*3);
+    return (uint32_t)syscall(SYS_readlinkat, (int)*arg1, pathname, buf, (size_t)*bufsiz);
+}
+
+/**
+ *  chmod, fchmod, fchmodat - change permissions of a file
+ *
+ *  Syscall number 268
+ *
+ *  int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags);
+ */
+uint32_t do_fchmodat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_fchmodat, (int)*arg1, pathname, (mode_t)*arg3, (int)*arg4);
+}
+
+/**
+ *  access, faccessat, faccessat2 - check user's permissions for a file
+ *
+ *  Syscall number 269
+ *
+ *  int faccessat(int dirfd, const char *pathname, int mode, int flags);
+ */
+uint32_t do_faccessat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    const char * pathname = (char *)(mem+*arg2);
+    return (uint32_t)syscall(SYS_faccessat, (int)*arg1, pathname, (int)*arg3, (int)*arg4);
+}
+
 uint32_t do_pselect6(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number270
 
 /**
+ * poll, ppoll - wait for some event on a file descriptor
+ *
  * Syscall number 271
+ *
+ * int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *_Nullable tmo_p, const sigset_t *_Nullable sigmask);
  */
 uint32_t do_ppoll(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     struct pollfd *fds32 = (struct pollfd *)(mem + *arg1);
@@ -1591,8 +2193,17 @@ uint32_t do_ppoll(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
     return (uint32_t)result;
 }
 
+/**
+ * unshare - disassociate parts of the process execution context
+ *
+ * Syscall number 272
+ *
+ * int unshare(int flags);
+ */
+uint32_t do_unshare(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return (uint32_t)syscall(SYS_unshare, (int)*arg1);
+}
 
-uint32_t do_unshare(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number272
 uint32_t do_set_robust_list(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number273
 uint32_t do_get_robust_list(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number274
 uint32_t do_splice(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number275
