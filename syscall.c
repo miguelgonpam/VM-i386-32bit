@@ -23,6 +23,7 @@
 #include <sys/sem.h>
 #include <sys/msg.h>
 #include <sys/xattr.h>
+#include <sys/ptrace.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
@@ -31,7 +32,7 @@
 
 #include "instr.h"
 
-
+/*
 typedef struct stat32 {
     uint32_t st_dev;
     uint16_t __pad1;
@@ -58,6 +59,8 @@ typedef struct stat32 {
     uint32_t __unused4;
     uint32_t __unused5;
 };
+*/
+
 
 uint8_t * mem;
 
@@ -133,7 +136,7 @@ uint32_t do_stat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, u
 
     int result = syscall(SYS_stat, pathname, &statbuf64);
     if (result >= 0) {
-        stat64_to_stat32(&statbuf64, statbuf32);
+        //stat64_to_stat32(&statbuf64, statbuf32); ???
     }
     return (uint32_t)result;
 }
@@ -373,7 +376,7 @@ uint32_t do_sched_yield(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *
 uint32_t do_mremap(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     void * old_address = (void *)(mem+*arg1);
     void * new_address = (void *)(mem+*arg5);
-    void * res = syscall(old_address, (size_t)*arg2, (size_t)*arg3, (int)*arg4, new_address);
+    void * res = (void *) syscall(SYS_sched_yield, old_address, (size_t)*arg2, (size_t)*arg3, (int)*arg4, new_address);
     return (uint32_t)(res-(void *)mem); //return a 32bit virtual address
 }
 
@@ -433,8 +436,8 @@ uint32_t do_shmget(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
  * void *shmat(int shmid, const void *_Nullable shmaddr, int shmflg);
  */
 uint32_t do_shmat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    const void * shmaddr = (void *)(memç*arg2);
-    void * res = syscall(SYS_shmat, (int)*arg1, shmaddr, (int)*arg3);
+    const void * shmaddr = (void *)(mem+*arg2);
+    void * res = (void *) syscall(SYS_shmat, (int)*arg1, shmaddr, (int)*arg3);
     return (uint32_t)(res-(void*)mem);
 }
 
@@ -588,8 +591,8 @@ uint32_t do_execve(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
     //POINTER TO VARIABLE WORKS, BUT IT POINTS TO 32bit INTEGERS; NOT 64bit POINTERS, it must do mem+off 
     // for every offser within pointer to pointers. ???
     const char * pathname = (char *)(mem+*arg1);
-    const char** argv = (char **)(mem+*arg2);
-    const char** envp = (char **)(mem+*arg3);
+    const char** argv = (const char **)(mem+*arg2);
+    const char** envp = (const char **)(mem+*arg3);
     return (uint32_t)syscall(SYS_execve, pathname, argv, envp);
 }
 
@@ -754,7 +757,7 @@ uint32_t do_getdents(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
  */
 uint32_t do_getcwd(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     char * buf = (char *)(mem+*arg1);
-    char * res = syscall(SYS_getcwd, buf, (size_t)*arg2);
+    char * res = (char *) syscall(SYS_getcwd, buf, (size_t)*arg2);
     return (uint32_t)(res-(char*)mem);
 }
 
@@ -893,7 +896,7 @@ uint32_t do_readlink(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
  */
 uint32_t do_chmod(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     const char * pathname = (char *)(mem+*arg1);
-    return (uint32_t)syscall(SYS_chmod, pathname (mode_t)*arg2);
+    return (uint32_t)syscall(SYS_chmod, pathname, (mode_t)*arg2);
 }
 
 /**
@@ -1128,7 +1131,7 @@ uint32_t do_setregid(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
  */
 uint32_t do_getgroups(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     gid_t *list = (gid_t *)(mem+*arg2);
-    return (uint32_t)syscall(SYS_getgroups, (int)*arg1, list)
+    return (uint32_t)syscall(SYS_getgroups, (int)*arg1, list);
 }
 
 /**
@@ -1319,7 +1322,7 @@ uint32_t do_sysfs(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
  *  int getpriority(int which, id_t who);
  */
 uint32_t do_getpriority(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    return (uint32_t)syscall(SYS_getpriority, (int)*arg1, (id_t)*ar2);
+    return (uint32_t)syscall(SYS_getpriority, (int)*arg1, (id_t)*arg2);
 }
 
 /**
@@ -1330,7 +1333,7 @@ uint32_t do_getpriority(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *
  *  int setpriority(int which, id_t who, int prio);
  */
 uint32_t do_setpriority(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    return (uint32_t)syscall(SYS_setpriority, (int)*arg1, (id_t)*ar2, (int)*arg3);
+    return (uint32_t)syscall(SYS_setpriority, (int)*arg1, (id_t)*arg2, (int)*arg3);
 }
 
 
@@ -1846,8 +1849,11 @@ uint32_t do_tkill(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
  *  time_t time(time_t *_Nullable tloc);
  */
 uint32_t do_time(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    time_t tloc = (*arg1)?(time_t)*arg1:NULL; /* Nullable */
-    return (uint32_t)syscall(SYS_time, tloc);
+    if (*arg1)
+    {return (uint32_t)syscall(SYS_time, (time_t)*arg1);}
+    else
+    {return (uint32_t)syscall(SYS_time, NULL);}
+    
 }
 
 uint32_t do_futex(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number202
@@ -1923,7 +1929,7 @@ uint32_t do_semtimedop(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *a
  *  int posix_fadvise(int fd, off_t offset, off_t len, int advice);
  */
 uint32_t do_fadvise64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    return (uint32_t)syscall(SYS_fadvise_64, (int)*arg1, (off_t)*arg2, (off_t)*arg3, (int)*arg4);
+    return (uint32_t)syscall(SYS_fadvise64, (int)*arg1, (off_t)*arg2, (off_t)*arg3, (int)*arg4);
 }
 uint32_t do_timer_create(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number222
 uint32_t do_timer_settime(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number223
@@ -2113,8 +2119,8 @@ uint32_t do_symlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *ar
  */
 uint32_t do_readlinkat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     const char * pathname = (char *)(mem+*arg2);
-    char * restrict buf = (char *)(mem+arg*3);
-    return (uint32_t)syscall(SYS_readlinkat, (int)*arg1, pathname, buf, (size_t)*bufsiz);
+    char * restrict buf = (char *)(mem+*arg3);
+    return (uint32_t)syscall(SYS_readlinkat, (int)*arg1, pathname, buf, (size_t)*arg4);
 }
 
 /**
@@ -2292,6 +2298,7 @@ uint32_t do_landlock_restrict_self(uint32_t *nr, uint32_t *arg1, uint32_t *arg2,
 uint32_t do_memfd_secret(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number447
 uint32_t do_process_mrelease(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number448
 
+/*
 void stat64_to_stat32(const struct stat *st, struct stat32 *st32) {
     st32->st_dev = st->st_dev;
     st32->st_ino = st->st_ino;
@@ -2312,7 +2319,7 @@ void stat64_to_stat32(const struct stat *st, struct stat32 *st32) {
 
     //st32->st_ctime = st64->st_ctim;
     //st32->st_ctime_nsec = st64->st_ctim.tv_nsec;
-}
+}*/
 
 
 int main(){
