@@ -743,8 +743,40 @@ int cld_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  CLI. Clear Interrupt Flag.
+ *
+ *  Opcode 0xFA.
+ *
+ *  Exceptions if no privilege level.
+ *
+ *  IF = 0.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int cli_i(cs_insn *insn){
+    clear_Flag(IF);
+    return 0;
+}
 
+/**
+ *  CMC. Complement Carry Flag.
+ *
+ *  Opcode 0xF5.
+ *
+ *  No Exceptions.
+ *
+ *  CF = NOT CF.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cmc_i(cs_insn *insn){
+    complement_Flag(CF);
+    return 0;
+}
+
+int cmp_i(cs_insn *insn){
+    return 0;
 }
 
 

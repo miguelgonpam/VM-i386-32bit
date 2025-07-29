@@ -11,6 +11,10 @@ void clear_Flag(uint32_t f){
     eflags &= ~(f);
 }
 
+void complement_Flag(uint32_t f){
+    eflags ^= (f);
+}
+
 int test_Flag(uint32_t f){
     return (eflags & f)?1:0;
 }

@@ -5,6 +5,7 @@
 
 void set_Flag(uint32_t f);
 void clear_Flag(uint32_t f);
+void complement_Flag(uint32_t f);
 int test_Flag(uint32_t f);
 int parity(uint8_t v);
 int zero(uint8_t v);
