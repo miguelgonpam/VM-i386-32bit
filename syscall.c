@@ -155,7 +155,7 @@ uint32_t do_fstat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
 
     int result = syscall(SYS_fstat, fd, &statbuf64);
     if (result >= 0) {
-        stat64_to_stat32(&statbuf64, statbuf32);
+        //stat64_to_stat32(&statbuf64, statbuf32);
     }
     return (uint32_t)result;
 }
@@ -174,7 +174,7 @@ uint32_t do_lstat(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
 
     int result = syscall(SYS_lstat, pathname, &statbuf64);
     if (result >= 0) {
-        stat64_to_stat32(&statbuf64, statbuf32);
+        //stat64_to_stat32(&statbuf64, statbuf32);
     }
     return (uint32_t)result;
 }
@@ -308,7 +308,7 @@ uint32_t do_ioctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
  */
 uint32_t do_pread64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     void * buf = (void *)(mem+*arg2);
-    return (uint32_t)syscall(SYS_pread, (int)*arg1, buf, (size_t)*arg3, (off_t)*arg4);
+    return (uint32_t)syscall(SYS_pread64, (int)*arg1, buf, (size_t)*arg3, (off_t)*arg4);
 }
 
 /**
@@ -320,7 +320,7 @@ uint32_t do_pread64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3
  */
 uint32_t do_pwrite64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     void * buf = (void *)(mem+*arg2);
-    return (uint32_t)syscall(SYS_pwrite, (int)*arg1, buf, (size_t)*arg3, (off_t)*arg4);
+    return (uint32_t)syscall(SYS_pwrite64, (int)*arg1, buf, (size_t)*arg3, (off_t)*arg4);
 }
 
 
@@ -2320,8 +2320,3 @@ void stat64_to_stat32(const struct stat *st, struct stat32 *st32) {
     //st32->st_ctime = st64->st_ctim;
     //st32->st_ctime_nsec = st64->st_ctim.tv_nsec;
 }*/
-
-
-int main(){
-    return 0;
-}
