@@ -1,3 +1,9 @@
+/**
+ *  This file contains the argument traduction for 32bit syscalls to 64bit syscalls.
+ *  The syscall numbers reference de 64bit numbers. See ausyscall --dump.
+ *  Some syscalls numbers are undefined and others are 32bit syscalls deprecated in 64bit.
+ */
+
 #define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
 
@@ -2297,6 +2303,17 @@ uint32_t do_landlock_add_rule(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint
 uint32_t do_landlock_restrict_self(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number446
 uint32_t do_memfd_secret(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number447
 uint32_t do_process_mrelease(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number448
+
+
+/* 
+ * UNIMPLEMENTED 
+ *
+ * No Syscall number. Deprecated in 64 bits.
+ */
+uint32_t do_break(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return 0;
+}
+
 
 /*
 void stat64_to_stat32(const struct stat *st, struct stat32 *st32) {
