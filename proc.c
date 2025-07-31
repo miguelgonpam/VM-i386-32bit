@@ -56,7 +56,7 @@ int main(int argc, char *argv[]){
 
 
    int r = read_elf_file(argc, argv);
-   printf(" EIP : 0x%08x", eip);
+   printf(" EIP : 0x%08x\n", eip);
    /* */
 
    /* DECODE VARIABLES */
