@@ -1,75 +1,91 @@
-typedef struct {
-    uint8_t e_ident[16];
-    uint16_t e_type;
-    uint16_t e_machine;
-    uint32_t e_version;
-    uint32_t e_entry;
-    uint32_t e_phoff;
-    uint32_t e_shoff;
-    uint32_t e_flags;
-    uint16_t e_ehsize;
-    uint16_t e_phentsize;
-    uint16_t e_phnum;
-    uint16_t e_shentsize;
-    uint16_t e_shnum;
-    uint16_t e_shstrndx;
-} Elf32_Ehdr;
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <elf.h>
+#include "loader.h"
+#include "instr.h"
 
-typedef struct {
-    uint32_t p_type;
-    uint32_t p_offset;
-    uint32_t p_vaddr;
-    uint32_t p_paddr;
-    uint32_t p_filesz;
-    uint32_t p_memsz;
-    uint32_t p_flags;
-    uint32_t p_align;
-} Elf32_Phdr;
+extern uint8_t * mem;
+extern uint32_t eip;
 
-int load_elf(Emulator *emu, const char *filename) {
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) return -1;
-    
+int read_elf_file(int argc, char *argv[]) {
+
+    /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
+
+    /* LOG File Initialization */
+    FILE *log = fopen("log.txt", "w"); 
+    if (log == NULL) {
+        perror("Error al abrir el archivo de log");
+        return 1;
+    }
+
+    /* Args comprobation */
+    if (argc != 2) {
+        fprintf(stderr, "Uso: %s <archivo_elf>\n", argv[0]);
+        fprintf(log, "Wrong number of arguments. \n");
+        return 1;
+    }
+
+    /* Open ELF file to perform binary read*/
+    FILE *elf_file = fopen(argv[1], "rb");
+    if (!elf_file) {
+        perror("Error al abrir ELF");
+        fprintf(log, "Failed to open ELF file. \n");
+        return 1;
+    }
+
+    /* Read ELF headers */
     Elf32_Ehdr ehdr;
-    fread(&ehdr, sizeof(ehdr), 1, fp);
-    
-    // Verify ELF header
-    if (memcmp(ehdr.e_ident, "\x7F""ELF", 4) != 0 || 
-        ehdr.e_machine != 3 /* EM_386 */) {
-        fclose(fp);
-        return -1;
+    fread(&ehdr, 1, sizeof(ehdr), elf_file);
+    fprintf(log, "Read ELF headers. \n");
+
+    /* Validate ELF parameters */
+    if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0 ||
+        ehdr.e_ident[EI_CLASS] != ELFCLASS32) {
+        fprintf(stderr, "Archivo no es ELF32 válido.\n");
+        fprintf(log, "Invalid ELF file type. \n");
+        fclose(elf_file);
+        return 1;
     }
+
+    /* Validate mem pointer */
+    if (!mem) {
+        perror("Error al reservar 4 GB de memoria");
+        fprintf(log, "Found an error while allocating memory. \n");
+        fclose(elf_file);
+        return 1;
+    }
+
     
-    // Load program segments
-    fseek(fp, ehdr.e_phoff, SEEK_SET);
+
+    /* Read all program headers*/
+    fseek(elf_file, ehdr.e_phoff, SEEK_SET);
+    
+    long phdrs_start = ehdr.e_phoff;
     for (int i = 0; i < ehdr.e_phnum; i++) {
+        fseek(elf_file, phdrs_start + i * sizeof(Elf32_Phdr), SEEK_SET);
         Elf32_Phdr phdr;
-        fread(&phdr, sizeof(phdr), 1, fp);
+        fread(&phdr, 1, sizeof(phdr), elf_file);
+
+        if (phdr.p_type != PT_LOAD)
+            continue;
+
+        fseek(elf_file, phdr.p_offset, SEEK_SET);
+        fread(mem + phdr.p_vaddr, 1, phdr.p_filesz, elf_file);
+
+        /* No zero fill needed*/
+
+        fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
         
-        if (phdr.p_type == 1 /* PT_LOAD */) {
-            fseek(fp, phdr.p_offset, SEEK_SET);
-            uint8_t *segment_data = malloc(phdr.p_filesz);
-            fread(segment_data, phdr.p_filesz, 1, fp);
-            
-            // Copy to emulated memory
-            memcpy(emu->memory + phdr.p_vaddr, segment_data, phdr.p_filesz);
-            free(segment_data);
-            
-            // Zero out BSS section if needed
-            if (phdr.p_memsz > phdr.p_filesz) {
-                memset(emu->memory + phdr.p_vaddr + phdr.p_filesz, 
-                      0, phdr.p_memsz - phdr.p_filesz);
-            }
-        }
     }
-    
-    fclose(fp);
-    
-    // Set entry point
-    emu->registers.eip = ehdr.e_entry;
-    
-    // Initialize stack pointer (typical Linux i386 initial stack)
-    emu->registers.esp = 0xBFFFFFF0;
+
+    fclose(elf_file);
+    fclose(log);
+    /* EIP Initialization */
+    eip = ehdr.e_entry;
+
+    /* No need to free mem pointer, because it is used in the main program */
     
     return 0;
 }

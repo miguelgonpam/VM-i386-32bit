@@ -30,9 +30,9 @@ uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x0
 int initialize(){
     /* Initialize registers. EFLAGS is already set in flags.c */
     esp = 0xFFF00000;
-    eip = 0x08490000;
+    //eip = 0x08490000;
 
-    mem = (uint8_t *)malloc(UINT32_MAX * sizeof(uint8_t)); //4GB de memoria del i386 (32 bits)
+    mem = (uint8_t *)calloc(sizeof(uint8_t), UINT32_MAX ); //4GB de memoria del i386 (32 bits)
     if (!mem)
         return 0;
 

@@ -5,6 +5,7 @@
 #include <capstone/capstone.h>
 #include "instr.h"
 #include "flags.h"
+#include "loader.h"
 
 typedef int (*InstrFunc)(uint8_t *);
 
@@ -47,13 +48,18 @@ void step(csh hand, const uint8_t *code, size_t code_size, uint64_t address, siz
 }
 
 
-int main(){
+int main(int argc, char *argv[]){
    /* INITIALIZATION */
    system("clear"); //execve?
    if(!initialize())
       return -1;
 
+   int r = read_elf_file(argc, argv);
+
+   /* */
+
    /* DECODE VARIABLES */
+   /*
    csh handle;
    cs_insn *insn;
    size_t count;
@@ -61,8 +67,11 @@ int main(){
         return -1;
     
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
+   */
+
 
    /* One instruction forward */
+   /*
    while(false){
       step(handle, mem+eip, sizeof(mem)-eip, eip, 0, &insn);
       eip+=insn[0].size;
@@ -71,7 +80,7 @@ int main(){
       cs_free(insn, count);
    }
 
-
+   */
 
    free(mem);
 
