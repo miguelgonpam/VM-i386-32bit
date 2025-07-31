@@ -54,8 +54,9 @@ int main(int argc, char *argv[]){
    if(!initialize())
       return -1;
 
-   int r = read_elf_file(argc, argv);
 
+   int r = read_elf_file(argc, argv);
+   printf(" EIP : %u", eip);
    /* */
 
    /* DECODE VARIABLES */

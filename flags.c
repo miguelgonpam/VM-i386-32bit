@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "flags.h"
 
-uint32_t eflags = 0x2;
+uint32_t eflags = 0x202;
 
 void set_Flag(uint32_t f){
     eflags |= (f);
