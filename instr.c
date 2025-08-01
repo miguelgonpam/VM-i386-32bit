@@ -85,7 +85,7 @@ int aad_i(cs_insn *insn){
     *al = *ah * 10 + *al;
     *ah = 0;
 
-    sign(*al)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
+    sign(*al, 0x8)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
     zero(*al)?clear_Flag(ZF):set_Flag(ZF); //set ZF if AL is 0
     parity(*al)?set_Flag(PF):clear_Flag(PF); //set PF if there is an even number of 1's.
 }
@@ -108,7 +108,7 @@ int aam_i(cs_insn *insn){
     *ah = *al / 10;
     *al = *al % 10;
 
-    sign(*al)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
+    sign(*al, 0x8)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
     zero(*al)?clear_Flag(ZF):set_Flag(ZF); //set ZF if AL is 0
     parity(*al)?set_Flag(PF):clear_Flag(PF); //set PF if there is an even number of 1's.
 }
@@ -776,6 +776,51 @@ int cmc_i(cs_insn *insn){
 }
 
 int cmp_i(cs_insn *insn){
+    return 0;
+}
+
+/**
+ *  DEC. Decrement by 1.
+ *
+ *  Opcodes 0xFE /1, 0xFF /1, 0x48-0x4F.
+ *
+ *  Segment Exceptions.
+ *
+ *  OF, SF, AF, ZF and PF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int dec_i(cs_insn *insn){
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t res = 0x0, op1 = 0x0;
+    if (op1.type == X86_OP_REG){
+        void *p = regs[op1.reg];
+        uint8_t base = regs_size[op1.reg];
+        switch(base){
+            case 0x10:
+                op1=*((uint16_t*)p);
+                *((uint16_t*)p)-=1;
+                res = *((uint16_t*)p)
+                break;
+            case 0x20:
+                op1=*((uint32_t*)p);
+                *((uint32_t*)p)-=1;
+                res = *((uint32_t*)p)
+                break;
+        }
+    }else if (op1.type == X86_OP_MEM){
+        uint32_t* p = ((uint32_t *)(mem + eff_addr(op1.mem)));
+        *p-=1;
+        res = *p;
+    }
+
+    overflow(op1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(op1, 1, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
     return 0;
 }
 

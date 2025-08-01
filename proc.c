@@ -47,6 +47,12 @@ void step(csh hand, const uint8_t *code, size_t code_size, uint64_t address, siz
                                                                         //poner direccion a eip
 }
 
+/**
+   Dumps the memory from the direction offset. Dumps m words of memory (understanding a word as 4 bytes).
+
+   @param offset first direction to dump.
+   @param m number of contiguous words to dump.
+*/
 void dump_mem(uint32_t off, uint32_t m){
    uint8_t * p = mem;
    for (int i=0;i<m;i++){
