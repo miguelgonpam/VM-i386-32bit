@@ -9,7 +9,8 @@
 #include "loader.h"
 #include "interface.h"
 
-
+#define MIN(a,b) ((a > b)? (b) : (a))
+#define MAX_STR 50
 
 typedef int (*InstrFunc)(uint8_t *);
 
@@ -19,6 +20,8 @@ extern uint32_t eflags;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 extern uint32_t * regs[8];
 extern uint8_t * regs8[8];
+
+extern int rows, cols;
 
 // AUXILIARY INSTRUCTION FUNCTIONS
 
@@ -71,41 +74,48 @@ int main(int argc, char *argv[]){
    if(!initialize())
       return 1;
    
-   eax = 0xFFFFFFFF;
-   edx = 0xEEEEEEEE;
-   ecx = 0xDDDDDDDD;
-   ebx = 0xCCCCCCCC;
-   esi = 0xBBBBBBBB;
-   edi = 0xAAAAAAAA;
-   ebp = 0x99999999;
+   int r = read_elf_file(argc, argv);
+
    init_interface();
    csh handle;
    cs_insn *insn;
    size_t count;
-   uint8_t code[] = {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57};
+
 
    if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
         return -1;
     
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-   count = cs_disasm(handle, code, sizeof(code), 0x8049000, 0, &insn); //poner 0 a 1 para solo decodificar una instr
+   count = cs_disasm(handle, &mem[eip], r-eip, eip, 0, &insn); //poner 0 a 1 para solo decodificar una instr
                                                                       //poner direccion a eip
-   
+   char **lineas = malloc(rows * sizeof(char *));
+   printf("rows : %d\n", rows);
+   if (lineas == NULL){
+      perror("malloc");
+      exit(1);
+   }
+   printf("min %d",MIN(rows,count));
     if (count > 0) {
-        for (size_t i = 0; i < count; i++) {
-            printf("eip: 0x%8x -> 0x%lx:\t%s\t%s\n", eip,insn[i].address, insn[i].mnemonic, insn[i].op_str);
-            if (strcmp(insn[i].mnemonic, "push") == 0){
-               push_i(&insn[i]);
-            }
-            eip += insn[i].size;
+        for (size_t i = 0; i < MIN(rows, count); i++) {
+            lineas[i]=malloc(MAX_STR);
+            snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.20s",insn[i].address, insn[i].mnemonic, insn[i].op_str);
+            printf("%s\n", lineas[i]);
+            //if (strcmp(insn[i].mnemonic, "push") == 0){
+            //   push_i(&insn[i]);
+            //}
+            //eip += insn[i].size;
+        }
+        draw_code(lineas, rows);
+        for (int i = 0; i<MIN(rows, count); i++){
+            free(lineas[i]);
         }
         cs_free(insn, count);
+        
+
     } else {
         printf("Failed to disassemble code\n");
     }
-   
-
    
    draw_regs();
    draw_stack();
@@ -114,8 +124,7 @@ int main(int argc, char *argv[]){
    
 
    
-   //int r = read_elf_file(argc, argv);
-   //printf(" EIP : 0x%08x\n", eip);
+   
 
    /* */
 

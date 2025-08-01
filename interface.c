@@ -9,7 +9,7 @@ extern uint32_t eflags;
 extern uint8_t * mem;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 
-int rows, cols;
+int rows, cols;//, scroll;
 WINDOW * win_pila, * win_registros, * win_codigo;
 
 void init_interface(){
@@ -32,7 +32,7 @@ void draw_regs(){
     char * buffer = malloc(sizeof(char) * REGS_BUFF_S);
 
     uint8_t c = test_Flag(CF),p = test_Flag(PF),z = test_Flag(ZF),s = test_Flag(SF),o = test_Flag(OF),a = test_Flag(AF), i = test_Flag(IF);
-    snprintf(buffer, REGS_BUFF_S, "EAX : 0x%08x %010u\t\tECX : 0x%08x %010u\t\tEDX : 0x%08x %010u\n EBX : 0x%08x %010u\t\tESI : 0x%08x %010u\t\tEDI : 0x%08x %010u\n ESP : 0x%08x %010u\t\tEBP : 0x%08x %010u\t\tEIP : 0x%08x %010u\n DS  : 0x%08x %010u\t\tFS  : 0x%08x %010u\t\tEFLAGS : 0x%08x\n SS  : 0x%08x %010u\t\tES  : 0x%08x %010u\t\t[ %02s %02s %02s %02s %02s %02s %02s]\n CS  : 0x%08x %010u\t\tGS  : 0x%08x %010u\nEFLAGS : 0x%08x\t", 
+    snprintf(buffer, REGS_BUFF_S, "EAX : 0x%08x %010u\t\tECX : 0x%08x %010u\t\tEDX : 0x%08x %010u\n EBX : 0x%08x %010u\t\tESI : 0x%08x %010u\t\tEDI : 0x%08x %010u\n ESP : 0x%08x %010u\t\tEBP : 0x%08x %010u\t\tEIP : 0x%08x %010u\n DS  : 0x%08x %010u\t\tFS  : 0x%08x %010u\t\tEFLAGS : 0x%08x\n SS  : 0x%08x %010u\t\tES  : 0x%08x %010u\t\t[ %2s %2s %2s %2s %2s %2s %2s]\n CS  : 0x%08x %010u\t\tGS  : 0x%08x %010u\nEFLAGS : 0x%08x\t", 
         eax,eax,ecx,ecx,edx,edx,ebx,ebx,esi,esi,edi,edi,esp,esp,ebp,ebp,eip,eip,ds,ds,fs,fs,eflags,ss,ss,es,es,c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"",cs,cs,gs,gs);
     mvwprintw(win_registros, 1, 1, buffer);
     box(win_registros, 0, 0);
@@ -62,6 +62,25 @@ void draw_stack(){
     wrefresh(win_pila);
 }
 
+void draw_code(const char ** lineas, int count){
+    werase(win_codigo);
+    box(win_codigo, 0, 0);
+
+    for (int i = 0; i < (rows - REGISTERS_HEIGHT - 2); i++) {
+        if (i < count) {
+            mvwprintw(win_codigo, i + 1, 1, "%s", lineas[i]);
+        }
+    }
+    wrefresh(win_codigo);
+
+    // Control de scroll
+    //if (ch == KEY_DOWN && scroll < num_lineas - 1){
+    //    scroll++;
+    //}else if (ch == KEY_UP && scroll > 0){
+    //    scroll--;
+    //}
+}
+
 void exit_interface(){
     delwin(win_registros);
     delwin(win_pila);
@@ -88,7 +107,7 @@ int main2() {
         "Línea 10: RET"
     };
     int num_lineas = sizeof(lineas) / sizeof(lineas[0]);
-    int scroll = 0;
+    //int scroll = 0;
 
     // Dibujar estáticos
     draw_regs();
@@ -104,22 +123,8 @@ int main2() {
         // --- Dibujar pila ---
         draw_stack();
         // --- Dibujar código con scroll ---
-        werase(win_codigo);
-        box(win_codigo, 0, 0);
-
-        for (int i = 0; i < (rows - REGISTERS_HEIGHT - 2); i++) {
-            if (scroll + i < num_lineas) {
-                mvwprintw(win_codigo, i + 1, 1, "%s", lineas[scroll + i]);
-            }
-        }
-        wrefresh(win_codigo);
-
-        // Control de scroll
-        if (ch == KEY_DOWN && scroll < num_lineas - 1){
-            scroll++;
-        }else if (ch == KEY_UP && scroll > 0){
-            scroll--;
-        }
+        draw_code(lineas, num_lineas);
+        
     }
     // Limpieza
     delwin(win_registros);
