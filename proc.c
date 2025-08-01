@@ -47,6 +47,13 @@ void step(csh hand, const uint8_t *code, size_t code_size, uint64_t address, siz
                                                                         //poner direccion a eip
 }
 
+void dump_mem(uint32_t off, uint32_t m){
+   uint8_t * p = mem;
+   for (int i=0;i<m;i++){
+      printf("0x%08x : %02x %02x %02x %02x\n", off+4*i, mem[off+4*i], mem[off+4*i+1], mem[off+4*i+2], mem[off+4*i+3]);
+   }
+}
+
 
 int main(int argc, char *argv[]){
    /* INITIALIZATION */
