@@ -6,6 +6,8 @@
 #ifndef INSTR_H
 #define INSTR_H
 
+#define STACK_BOTTOM 0xFFF00000
+
 int initialize();
 int aaa_i(cs_insn *insn);
 int aad_i(cs_insn *insn);
@@ -150,5 +152,9 @@ int mov_i(cs_insn *insn);
 uint32_t reg_val(int reg_id);
 uint32_t eff_addr(x86_op_mem m);
 uint32_t pow_i(uint32_t b, uint32_t exp);
+void write16(uint32_t addr, uint16_t value);
+void write32(uint32_t addr, uint32_t value);
+uint16_t read16(uint32_t addr);
+uint32_t read32(uint32_t addr);
 
 #endif

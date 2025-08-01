@@ -1,1 +1,1 @@
-gcc -o proc proc.c flags.c instr.c -lcapstone -Wno-int-conversion
+gcc -o proc proc.c instr.c flags.c loader.c interface.c -lcapstone -lc -lncurses

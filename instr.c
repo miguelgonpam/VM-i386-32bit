@@ -29,10 +29,9 @@ uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x0
  */
 int initialize(){
     /* Initialize registers. EFLAGS is already set in flags.c */
-    esp = 0xFFF00000;
-    //eip = 0x08490000;
+    esp = STACK_BOTTOM;
 
-    mem = (uint8_t *)calloc(sizeof(uint8_t), UINT32_MAX ); //4GB de memoria del i386 (32 bits)
+    mem = (uint8_t *)calloc(sizeof(uint8_t), UINT32_MAX ); //4GB de memoria del i386 (32 bits) inicializada a 00 cada byte
     if (!mem)
         return 0;
 
@@ -55,6 +54,7 @@ int initialize(){
  *  @param insn instruction struct that stores all the information.
  */
 int aaa_i(cs_insn *insn){
+    
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
     if ((*al & 0x0F > 9) || (test_Flag(AF))){
@@ -80,6 +80,7 @@ int aaa_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aad_i(cs_insn *insn){
+    
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
     *al = *ah * 10 + *al;
@@ -102,6 +103,7 @@ int aad_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aam_i(cs_insn *insn){
+    
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
 
@@ -125,6 +127,7 @@ int aam_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aas_i(cs_insn *insn){
+    
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
 
@@ -152,6 +155,7 @@ int aas_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int adc_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -200,6 +204,7 @@ int adc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int add_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -248,7 +253,7 @@ int add_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int and_i(cs_insn *insn){
-    eip += insn->size;
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -299,6 +304,7 @@ int and_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int arpl_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -340,6 +346,7 @@ int arpl_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bound_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -378,6 +385,7 @@ int bound_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bsf_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -426,6 +434,7 @@ int bsf_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bsr_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -474,6 +483,7 @@ int bsr_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bt_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -520,6 +530,7 @@ int bt_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int btc_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -574,6 +585,7 @@ int btc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int btr_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -628,6 +640,7 @@ int btr_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bts_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -671,6 +684,7 @@ int bts_i(cs_insn *insn){
 }
 
 int call_i(cs_insn *insn){
+    
     return 0;
 }
 
@@ -686,6 +700,7 @@ int call_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cbw_i(cs_insn *insn){
+    
     uint8_t * al = (uint8_t *)&eax;
     uint16_t * ax = (uint16_t *)&eax;
 
@@ -705,6 +720,7 @@ int cbw_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cwde_i(cs_insn *insn){
+    
     uint16_t * ax = (uint16_t *)&eax;
 
     (*ax >> 15)?(eax |=(0xFFFF0000 | *ax)):(eax &=(0x0000FFFF & *ax));
@@ -723,6 +739,7 @@ int cwde_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int clc_i(cs_insn *insn){
+    
     clear_Flag(CF);
     return 0;
 }
@@ -739,6 +756,7 @@ int clc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cld_i(cs_insn *insn){
+    
     clear_Flag(DF); /* After CLD is executed, string operations will increment the index registers (SI and/or DI) that they use. ?*/
     return 0;
 }
@@ -755,6 +773,7 @@ int cld_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cli_i(cs_insn *insn){
+    
     clear_Flag(IF);
     return 0;
 }
@@ -771,6 +790,7 @@ int cli_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cmc_i(cs_insn *insn){
+    
     complement_Flag(CF);
     return 0;
 }
@@ -791,22 +811,23 @@ int cmp_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int dec_i(cs_insn *insn){
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
-    uint32_t res = 0x0, op1 = 0x0;
+    uint32_t res = 0x0, oper1 = 0x0;
     if (op1.type == X86_OP_REG){
         void *p = regs[op1.reg];
         uint8_t base = regs_size[op1.reg];
         switch(base){
             case 0x10:
-                op1=*((uint16_t*)p);
+                oper1=*((uint16_t*)p);
                 *((uint16_t*)p)-=1;
-                res = *((uint16_t*)p)
+                res = *((uint16_t*)p);
                 break;
             case 0x20:
-                op1=*((uint32_t*)p);
+                oper1=*((uint32_t*)p);
                 *((uint32_t*)p)-=1;
-                res = *((uint32_t*)p)
+                res = *((uint32_t*)p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
@@ -815,10 +836,10 @@ int dec_i(cs_insn *insn){
         res = *p;
     }
 
-    overflow(op1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
+    overflow(oper1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
     sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
     (!res)?set_Flag(ZF):clear_Flag(ZF);
-    adjust(op1, 1, res)?set_Flag(AF):clear_Flag(AF);
+    adjust(oper1, 1, res)?set_Flag(AF):clear_Flag(AF);
     parity(res)?set_Flag(PF):clear_Flag(PF);
 
     return 0;
@@ -864,8 +885,61 @@ int mov_i(cs_insn *insn){
     return 0;
 }
 
+int push_i(cs_insn*insn){
+    
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint32_t val;
+    uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
+    if (op1.type == X86_OP_REG){
+        val = reg_val(op1.reg);
+    }else if(op1.type == X86_OP_IMM){
+        val = op1.imm;
+    }else if (op1.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op1.mem)));
+    }
+
+    
+    if (s == 2){
+        esp-=2;
+        write16(esp, (uint16_t)val);
+    }else{ /* Operands can be only 16b (2B) or 32b (4B) */
+        esp-=4;
+        write32(esp, val);
+    }
+
+    return 0;
+
+}
+
+int pop_i(cs_insn *insn){
+    
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
+
+    if (op1.type == X86_OP_REG){
+        void * p = regs[op1.reg];
+        if (s == 2){
+            *((uint16_t *)p)=read16(esp);
+            esp+=2;
+        }else{
+            *((uint32_t *)p)=read32(esp);
+            esp+=4;
+        }
+    }else if(op1.type == X86_OP_MEM){
+        uint32_t addr = eff_addr(op1.mem);
+        write32(addr, read32(esp));
+        esp+=4;
+    }
+
+}
+
+
+
 int sub_i(cs_insn *insn){
-    eip += insn->size;
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -904,7 +978,7 @@ int sub_i(cs_insn *insn){
 }
 
 int or_i(cs_insn *insn){
-    eip += insn->size;
+    
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -994,4 +1068,27 @@ uint32_t pow_i(uint32_t b, uint32_t exp){
         exp--;
     }
     return result;
+}
+
+void write16(uint32_t addr, uint16_t value) {
+    mem[addr]     = value & 0xFF;
+    mem[addr + 1] = (value >> 8) & 0xFF;
+}
+
+void write32(uint32_t addr, uint32_t value) {
+    mem[addr]     = value & 0xFF;
+    mem[addr + 1] = (value >> 8) & 0xFF;
+    mem[addr + 2] = (value >> 16) & 0xFF;
+    mem[addr + 3] = (value >> 24) & 0xFF;
+}
+
+uint16_t read16(uint32_t addr) {
+    return mem[addr] | (mem[addr + 1] << 8);
+}
+
+uint32_t read32(uint32_t addr) {
+    return mem[addr] |
+           (mem[addr + 1] << 8) |
+           (mem[addr + 2] << 16) |
+           (mem[addr + 3] << 24);
 }

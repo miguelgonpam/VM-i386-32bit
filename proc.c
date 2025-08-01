@@ -2,10 +2,14 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <capstone/capstone.h>
 #include "instr.h"
 #include "flags.h"
 #include "loader.h"
+#include "interface.h"
+
+
 
 typedef int (*InstrFunc)(uint8_t *);
 
@@ -65,11 +69,54 @@ int main(int argc, char *argv[]){
    /* INITIALIZATION */
    system("clear"); //execve?
    if(!initialize())
-      return -1;
+      return 1;
+   
+   eax = 0xFFFFFFFF;
+   edx = 0xEEEEEEEE;
+   ecx = 0xDDDDDDDD;
+   ebx = 0xCCCCCCCC;
+   esi = 0xBBBBBBBB;
+   edi = 0xAAAAAAAA;
+   ebp = 0x99999999;
+   init_interface();
+   csh handle;
+   cs_insn *insn;
+   size_t count;
+   uint8_t code[] = {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57};
 
+   if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
+        return -1;
+    
+   cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-   int r = read_elf_file(argc, argv);
-   printf(" EIP : 0x%08x\n", eip);
+   count = cs_disasm(handle, code, sizeof(code), 0x8049000, 0, &insn); //poner 0 a 1 para solo decodificar una instr
+                                                                      //poner direccion a eip
+   
+    if (count > 0) {
+        for (size_t i = 0; i < count; i++) {
+            printf("eip: 0x%8x -> 0x%lx:\t%s\t%s\n", eip,insn[i].address, insn[i].mnemonic, insn[i].op_str);
+            if (strcmp(insn[i].mnemonic, "push") == 0){
+               push_i(&insn[i]);
+            }
+            eip += insn[i].size;
+        }
+        cs_free(insn, count);
+    } else {
+        printf("Failed to disassemble code\n");
+    }
+   
+
+   
+   draw_regs();
+   draw_stack();
+   getchar();
+   exit_interface();
+   
+
+   
+   //int r = read_elf_file(argc, argv);
+   //printf(" EIP : 0x%08x\n", eip);
+
    /* */
 
    /* DECODE VARIABLES */

@@ -7,7 +7,7 @@ bt--
 call
 cld--
 cmp
-dec
+dec--
 div
 hlt
 idiv
@@ -29,8 +29,8 @@ nop
 not
 or
 out
-pop
-push
+pop--
+push--
 rep
 ret
 sbb

@@ -7,9 +7,11 @@ void set_Flag(uint32_t f);
 void clear_Flag(uint32_t f);
 void complement_Flag(uint32_t f);
 int test_Flag(uint32_t f);
-int parity(uint8_t v);
+int parity(uint32_t vv);
 int zero(uint8_t v);
-int sign(uint8_t v);
+int sign(uint32_t v, uint8_t base);
+int overflow(uint32_t op1, uint32_t op2, uint32_t res, uint8_t base);
+int adjust(uint32_t op1, uint32_t op2, uint32_t res);
 
 /*EFLAGS     0b0xxxxxxxxx0x0x1x    16-bits   */
 #define CF   0b0000000000000001 /* bit 0     */
