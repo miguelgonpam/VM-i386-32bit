@@ -145,9 +145,21 @@ int main(int argc, char *argv[], char *envp[]){
           */
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
             return -1;
-         if(dispatcher(ins[0].mnemonic, &ins[0]) == -1){
-            exit(1);
+         dispatcher(ins[0].mnemonic, &ins[0]);
+         /* If EIP instr is not visible on current screen*/
+         if (eip_ind < 0){
+            /* Find EIP and set it at the top of the screen */
+            for(int i=0; i<count;i++){
+               if (insn[i].address == eip){
+                  scr = i;
+                  break;
+               }
+            }
+         }else{
+            scr += eip_ind;
          }
+         
+         
       }
       else if (ch == KEY_DOWN && scr < count - (rows - REGISTERS_HEIGHT - 2))
         scr++;
