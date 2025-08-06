@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <capstone/capstone.h>
+#include <ncurses.h>
 #include "instr.h"
 #include "flags.h"
 #include "loader.h"
@@ -102,13 +103,31 @@ int main(int argc, char *argv[]){
       perror("malloc");
       exit(1);
    }
+
+   for (int i = 0; i<rows; i++){
+      lineas[i]=malloc(MAX_STR);
+   }
+
+   /* Char to get users char and scr to scroll instructions screen*/
+   int ch = 0, scr = 0;
+
+   /* Initialize scr to EIP instr*/
+   for(int i=0; i<count;i++){
+      if (insn[i].address == eip){
+         scr = i;
+         break;
+      }
+   }
    
-   char ch;
    
    do{
-      for (size_t i = 0; i < MIN(rows, count); i++) {
-         lineas[i]=malloc(MAX_STR);
-         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",insn[i].address, insn[i].mnemonic, insn[i].op_str);
+      int eip_ind = -1;
+      for (size_t i = 0; i < MIN(rows, count -scr); i++) {
+         uint32_t addr = insn[i+scr].address;
+         if (addr == eip){
+            eip_ind = i;
+         }
+         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",addr, insn[i+scr].mnemonic, insn[i+scr].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}
@@ -116,7 +135,15 @@ int main(int argc, char *argv[]){
       }
       draw_regs();
       draw_stack();
-      draw_code(lineas, rows);
+      if (ch == KEY_ENTER){
+         
+      }
+      else if (ch == KEY_DOWN && scr < count - (rows - REGISTERS_HEIGHT - 2))
+        scr++;
+      else if (ch == KEY_UP && scr > 0)
+        scr--;
+      
+      draw_code(lineas, rows, eip_ind);
    }while ((ch = getch()) != 'q');
 
 
@@ -126,7 +153,7 @@ int main(int argc, char *argv[]){
    cs_free(insn, count);
    
    
-   getchar();
+   //getchar();
    exit_interface();
    
 

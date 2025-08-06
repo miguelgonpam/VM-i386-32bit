@@ -9,7 +9,7 @@
 void init_interface();
 void draw_regs();
 void draw_stack();
-void draw_code();
+void draw_code(char ** lineas, int count, int eip_ind);
 void exit_interface();
 
 

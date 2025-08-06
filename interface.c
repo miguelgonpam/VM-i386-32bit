@@ -17,6 +17,7 @@ void init_interface(){
     noecho();               // No mostrar entrada
     cbreak();               // Modo sin buffering
     keypad(stdscr, TRUE);   // Habilita teclas especiales
+    
 
     
     getmaxyx(stdscr, rows, cols);
@@ -63,13 +64,20 @@ void draw_stack(){
     wrefresh(win_stack);
 }
 
-void draw_code(const char ** lineas, int count){
+void draw_code(char ** lineas, int count, int eip_ind){
     werase(win_code);
     box(win_code, 0, 0);
 
     for (int i = 0; i < (rows - REGISTERS_HEIGHT - 2); i++) {
         if (i < count) {
-            mvwprintw(win_code, i + 1, 1, "%s", lineas[i]);
+            if ( eip_ind >= 0 && i == eip_ind){
+                wattron(win_code, A_REVERSE);
+                mvwprintw(win_code, i + 1, 1, "%s", lineas[i]);
+                wattroff(win_code, A_REVERSE);
+            }else{
+                mvwprintw(win_code, i + 1, 1, "%s", lineas[i]);
+            }
+            
         }
     }
     wrefresh(win_code);
@@ -89,48 +97,3 @@ void exit_interface(){
     endwin();
 }
 
-
-int main2() {
-    
-    init_interface();
-
-    // Contenido simulado
-    const char *lineas[] = {
-        "Línea 1: MOV A, B",
-        "Línea 2: ADD A, 5",
-        "Línea 3: JMP 0x10",
-        "Línea 4: SUB B, A",
-        "Línea 5: PUSH A",
-        "Línea 6: POP B",
-        "Línea 7: NOP",
-        "Línea 8: INC C",
-        "Línea 9: DEC D",
-        "Línea 10: RET"
-    };
-    int num_lineas = sizeof(lineas) / sizeof(lineas[0]);
-    //int scroll = 0;
-
-    // Dibujar estáticos
-    draw_regs();
-
-    draw_stack();
-
-    // Scroll loop
-    int ch;
-    while ((ch = getch()) != 'q') {
-        // --- Dibujar registros ---
-        draw_regs();
-
-        // --- Dibujar pila ---
-        draw_stack();
-        // --- Dibujar código con scroll ---
-        draw_code(lineas, num_lineas);
-        
-    }
-    // Limpieza
-    delwin(win_regs);
-    delwin(win_stack);
-    delwin(win_code);
-    endwin();
-    return 0;
-}

@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <capstone/capstone.h>
 #include "instr.h"
 #include "flags.h"
@@ -8,7 +9,7 @@
 /******************************************************/
 /******************** DECLARATIONS ********************/
 /******************************************************/
-
+typedef int(*Instruction)(cs_insn *insn);
 uint8_t * mem;
 uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0; 
 extern uint32_t eflags;
@@ -17,6 +18,25 @@ extern uint32_t eflags;
 /* INDEX                  0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24       25    26    27    28    29    30    31    32    33    34    35    36    37    38    39    40    41    42    43    44    45    46    47    48    49  */
 void * regs[] =       {NULL, &eax, &eax, &eax, &ebx, &ebx, &ebp, NULL, &ebx, &ecx, &ecx,  &cs, &ecx, &edx, &edi, NULL, &edx,  &ds, &edx, &eax, &ebp, &ebx, &ecx, &edi, &edx, &eflags, &eip, NULL,  &es, &esi, &esp, NULL,  &fs,  &gs, &eip, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &esi, NULL, &esp, NULL,  &ss};
 uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x08, 0x08, 0x10, 0x10, 0x08, 0x10,    0, 0x08, 0x10, 0x10, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,    0x20, 0x20,    0, 0x10, 0x20, 0x20,    0, 0x10, 0x10, 0x10,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0, 0x10,    0, 0x10,    0, 0x10};
+
+const char *inss[] = {
+    "aaa","aad","aam","aas","adc","add","and","bt","bts","call","cbw","clc",
+    "cld","cli","cmc","cmp","cmps","cwd","cwde","daa","das","dec","div",
+    "hlt","idiv","imul","in","inc","int","into","iret","ja","jae","jb","jbe",
+    "jc","jcxz","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
+    "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
+    "jpo","js","lahf","lar","lcall","lds","lea","leave","les","lfs",
+    "lgdt","lgs","lidt","lldt","lmsw","lods","loop","loope","loopne","loopnz",
+    "loopz","lsl","ltr","mov","movs","movsx","movzx","mul","neg","nop","not",
+    "or","out","outs","pop","popa","popf","push","pusha","pushf","rcl","rcr",
+    "rol","ror","sahf","sal","sar","sbb","scas","seta","setae","setb","setbe",
+    "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
+    "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
+    "setns","seto","setp","setpe","setpo","sets","shl","shr","stc","std","sti",
+    "stos","sub","test","wait","xchg","xlat","xor"
+    };
+
+Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, bt_i, bts_i};
 
 
 
@@ -37,6 +57,26 @@ int initialize(){
 
     return 1;
 }
+
+
+
+/******************************************************/
+/*******************  DISPATCHER  *********************/
+/******************************************************/
+
+
+
+int dispatcher(char * mnemonic, cs_insn * insn){
+    const size_t count = sizeof(inss)/sizeof(*inss);
+    for (int i = 0; i< count ; i++){
+        if(strcmp(inss[i], mnemonic) == 0){
+            return instructions[i](insn);
+        }
+    }
+
+    return -1;
+}
+
 
 /******************************************************/
 /******************* INSTRUCTIONS *********************/

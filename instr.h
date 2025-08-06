@@ -7,8 +7,10 @@
 #define INSTR_H
 
 #define STACK_BOTTOM 0xFFF00000
+#define STACK_TOP (STACK_BOTTOM - 0x22000)
 
 int initialize();
+int dispatcher(char * mnemonic, cs_insn * insn);
 int aaa_i(cs_insn *insn);
 int aad_i(cs_insn *insn);
 int aam_i(cs_insn *insn);
