@@ -108,33 +108,33 @@ int main(int argc, char *argv[], char *envp[]){
       lineas[i]=malloc(MAX_STR);
    }
 
-   /* Char to get users char and scr to scroll instructions screen, focus to focus on code or*/
-   int ch = 0, scr = 0, focus = 0;
+   /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or*/
+   int ch = 0, scr_c = 0, scr_s = 0, focus = 0;
 
-   /* Initialize scr to EIP instr*/
+   /* Initialize scr_c to EIP instr*/
    for(int i=0; i<count;i++){
       if (insn[i].address == eip){
-         scr = i;
+         scr_c = i;
          break;
       }
    }
    
    
-   while (ch != 'q'){
+   while ('q' != ch){
       int eip_ind = -1;
-      for (size_t i = 0; i < MIN(rows, count -scr); i++) {
-         uint32_t addr = insn[i+scr].address;
+      for (size_t i = 0; i < MIN(rows, count -scr_c); i++) {
+         uint32_t addr = insn[i+scr_c].address;
          if (addr == eip){
             eip_ind = i;
          }
-         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",addr, insn[i+scr].mnemonic, insn[i+scr].op_str);
+         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}
          //eip += insn[i].size;
       }
       draw_regs();
-      draw_stack();
+      draw_stack(scr_s);
       draw_code(lineas, rows, eip_ind);
       ch = getch();
 
@@ -151,22 +151,37 @@ int main(int argc, char *argv[], char *envp[]){
             /* Find EIP and set it at the top of the screen */
             for(int i=0; i<count;i++){
                if (insn[i].address == eip){
-                  scr = i;
+                  scr_c = i;
                   break;
                }
             }
          }else{
             /* If EIP instr is visible set it to the top */
-            scr += eip_ind;
-            scr++;
+            scr_c += eip_ind;
+            scr_c++;
          }
          
          
+      }else if (KEY_DOWN == ch){
+         if (focus == 0 && scr_c < count - (rows - REGISTERS_HEIGHT - 2)){
+            scr_c++;
+         }
+         if (focus == 1 ){
+            scr_s++;
+         }
+      }else if (KEY_UP == ch){
+         if (focus == 0 && scr_c > 0){
+            scr_c--;
+         }
+         if (focus == 1 && scr_s > 0){
+            scr_s--;
+         }
+      }else if(KEY_LEFT == ch){
+         focus = 0;
+      }else if(KEY_RIGHT == ch){
+         focus = 1;
       }
-      else if (ch == KEY_DOWN && scr < count - (rows - REGISTERS_HEIGHT - 2))
-        scr++;
-      else if (ch == KEY_UP && scr > 0)
-        scr--;
+        
       
    }
 

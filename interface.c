@@ -40,20 +40,22 @@ void draw_regs(){
     free(buffer);
 }
 
-void draw_stack(){
+void draw_stack(int scr_s){
     werase(win_stack);
     mvwprintw(win_stack, 1, 5, "STACK: ");
     
-    int i=0;
+    int i=scr_s;
+    int k = 0;
     int lim = rows - REGISTERS_HEIGHT - 3 ;
     /* Substraction with unsigned ints so we must cast to int */
     int j = ((int)(STACK_BOTTOM - esp))/4;    
     do{
         if (j > 0){
-            mvwprintw(win_stack, 2 + i, 2, "0x%08x : 0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
+            mvwprintw(win_stack, 2 + k, 2, "0x%08x : 0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
         }
         i++;
-    }while(i <= lim && i < j);
+        k++;
+    }while(k <= lim && i < j);
 
     box(win_stack, 0, 0);
     wrefresh(win_stack);
