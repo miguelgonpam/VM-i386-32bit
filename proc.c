@@ -82,7 +82,7 @@ int main(int argc, char *argv[], char *envp[]){
       exit(1);
    }
 
-   init_interface();
+   
    csh handle;
    cs_insn *insn, *ins;
    size_t count;
@@ -98,6 +98,9 @@ int main(int argc, char *argv[], char *envp[]){
       printf("Failed to disassemble code\n");
       return 1;
    }
+
+   init_interface();
+
    char **lineas = malloc(rows * sizeof(char *));
    if (lineas == NULL){
       perror("malloc");
@@ -160,6 +163,8 @@ int main(int argc, char *argv[], char *envp[]){
             scr_c += eip_ind;
             scr_c++;
          }
+         /* Set top of stack at the top of stack window */
+         scr_s=0;
          
          
       }else if (KEY_DOWN == ch){

@@ -26,6 +26,7 @@ void init_interface(){
     win_regs = newwin(REGISTERS_HEIGHT, cols, 0, 0);
     win_stack = newwin(rows - REGISTERS_HEIGHT, STACK_WIDTH, REGISTERS_HEIGHT, cols - STACK_WIDTH);
     win_code = newwin(rows - REGISTERS_HEIGHT, cols - STACK_WIDTH, REGISTERS_HEIGHT, 0);
+    refresh();
 }
 
 void draw_regs(){
