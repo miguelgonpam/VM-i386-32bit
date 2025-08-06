@@ -9,7 +9,7 @@
 extern uint8_t * mem;
 extern uint32_t eip;
 
-uint32_t read_elf_file(int argc, char *argv[]) {
+uint32_t read_elf_file(int argc, char *argv[], uint32_t *ini, uint32_t *last) {
 
     /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
 
@@ -61,20 +61,27 @@ uint32_t read_elf_file(int argc, char *argv[]) {
 
     /* Read all program headers*/
     fseek(elf_file, ehdr.e_phoff, SEEK_SET);
-    
+    uint8_t found = 0;
     long phdrs_start = ehdr.e_phoff;
-    uint32_t last = 0;
+    
     for (int i = 0; i < ehdr.e_phnum; i++) {
         fseek(elf_file, phdrs_start + i * sizeof(Elf32_Phdr), SEEK_SET);
         Elf32_Phdr phdr;
         fread(&phdr, 1, sizeof(phdr), elf_file);
-
+        
         if (phdr.p_type != PT_LOAD)
             continue;
 
+        if (!found && phdr.p_flags & PF_X){ 
+            /* If program header Executable Flag is set to 1, and its the first to be this way, we store this vaddr, for disassembly. 
+               This allows to have the first v_addr to disassembly. PF_X is defined in <elf.h>.
+            */
+            found = 1;
+            *ini=phdr.p_vaddr;
+        }
         fseek(elf_file, phdr.p_offset, SEEK_SET);
         fread(mem + phdr.p_vaddr, 1, phdr.p_filesz, elf_file);
-        last = phdr.p_vaddr + phdr.p_filesz;
+        *last = phdr.p_vaddr + phdr.p_filesz;
         /* No zero fill needed*/
 
         fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
@@ -88,5 +95,5 @@ uint32_t read_elf_file(int argc, char *argv[]) {
 
     /* No need to free mem pointer, because it is used in the main program */
     
-    return last;
+    return 0;
 }

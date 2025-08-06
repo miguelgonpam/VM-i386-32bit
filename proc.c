@@ -73,8 +73,13 @@ int main(int argc, char *argv[]){
    system("clear"); //execve?
    if(!initialize())
       return 1;
-   
-   int r = read_elf_file(argc, argv);
+
+   uint32_t ini, r;
+
+   if(read_elf_file(argc, argv, &ini, &r)){
+      perror("elf");
+      exit(1);
+   }
 
    init_interface();
    csh handle;
@@ -87,38 +92,40 @@ int main(int argc, char *argv[]){
     
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-   count = cs_disasm(handle, &mem[eip], r-eip, eip, 0, &insn); //poner 0 a 1 para solo decodificar una instr
-                                                                      //poner direccion a eip
+   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn); //poner 0 a 1 para solo decodificar una instr
+   if (!count){
+      printf("Failed to disassemble code\n");
+      return 1;
+   }
    char **lineas = malloc(rows * sizeof(char *));
-   printf("rows : %d\n", rows);
    if (lineas == NULL){
       perror("malloc");
       exit(1);
    }
-   printf("min %d",MIN(rows,count));
-    if (count > 0) {
-        for (size_t i = 0; i < MIN(rows, count); i++) {
-            lineas[i]=malloc(MAX_STR);
-            snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.20s",insn[i].address, insn[i].mnemonic, insn[i].op_str);
-            printf("%s\n", lineas[i]);
-            //if (strcmp(insn[i].mnemonic, "push") == 0){
-            //   push_i(&insn[i]);
-            //}
-            //eip += insn[i].size;
-        }
-        draw_code(lineas, rows);
-        for (int i = 0; i<MIN(rows, count); i++){
-            free(lineas[i]);
-        }
-        cs_free(insn, count);
-        
-
-    } else {
-        printf("Failed to disassemble code\n");
-    }
    
-   draw_regs();
-   draw_stack();
+   char ch;
+   
+   do{
+      for (size_t i = 0; i < MIN(rows, count); i++) {
+         lineas[i]=malloc(MAX_STR);
+         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",insn[i].address, insn[i].mnemonic, insn[i].op_str);
+         //if (strcmp(insn[i].mnemonic, "push") == 0){
+         //   push_i(&insn[i]);
+         //}
+         //eip += insn[i].size;
+      }
+      draw_regs();
+      draw_stack();
+      draw_code(lineas, rows);
+   }while ((ch = getch()) != 'q');
+
+
+   /* Free memory */
+   for (int i = 0; i<MIN(rows, count); i++){ free(lineas[i]); }
+   free(lineas);
+   cs_free(insn, count);
+   
+   
    getchar();
    exit_interface();
    
