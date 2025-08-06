@@ -7,9 +7,68 @@
 #include "instr.h"
 
 extern uint8_t * mem;
-extern uint32_t eip;
+extern uint32_t eip, esp;
 
-uint32_t read_elf_file(int argc, char *argv[], uint32_t *ini, uint32_t *last) {
+int count_size(char **p){
+    int count = 0;
+    while (p[count] != NULL) {
+        count++;
+    }
+    return count;
+}
+
+
+void load_stack(int argc, char *argv[], char *envp[]){
+    int n_argv = count_size(argv);
+    int n_envp = count_size(envp);
+    uint32_t argv_emu[n_argv];
+    uint32_t envp_emu[n_envp];
+    
+    /* Push argv strings, first last one*/
+    for (int i=n_envp-1; i>=0; i--){
+        char * p = envp[i];
+        int len = strlen(p)+1;
+
+        esp -= len;
+        memcpy(&mem[esp], p, len);
+        envp_emu[i]=esp;
+    }
+    /* Push argv strings, first last one*/
+    for (int i=n_argv-1; i>=0; i--){
+        char * p = argv[i];
+        int len = strlen(p)+1;
+
+        esp -= len;
+        memcpy(&mem[esp], p, len);
+        argv_emu[i]=esp;
+    }
+
+    /* Stack alignment at 4 Bytes (Padding) */
+    esp &= ~0x3;
+
+    /* Push auxv. To be implemented */
+
+    /* Push NULL word to end envp */
+    esp -= 4;
+    write32(esp, 0x00000000);
+    for (int i=n_envp-1; i>=0; i--){
+        esp-=4;
+        write32(esp, envp_emu[i]);
+    }
+    /* Push NULL word to end argv */
+    esp -= 4;
+    write32(esp, 0x00000000);
+    for (int i=n_argv-1; i>=0; i--){
+        esp-=4;
+        write32(esp, argv_emu[i]);
+    }
+    /* Push argc */
+    esp -= 4;
+    write32(esp, argc); 
+
+}
+
+uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint32_t *last) {
 
     /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
 
@@ -92,6 +151,8 @@ uint32_t read_elf_file(int argc, char *argv[], uint32_t *ini, uint32_t *last) {
     fclose(log);
     /* EIP Initialization */
     eip = ehdr.e_entry;
+
+    load_stack(argc, argv, envp);
 
     /* No need to free mem pointer, because it is used in the main program */
     

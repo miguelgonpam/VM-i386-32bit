@@ -36,7 +36,21 @@ const char *inss[] = {
     "stos","sub","test","wait","xchg","xlat","xor"
     };
 
-Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, bt_i, bts_i};
+Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
+    bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmps_i, cwd_i, 
+    cwde_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
+    into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, je_i, jg_i, jge_i, jl_i, 
+    jle_i, jmp_i, jna_i, jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, 
+    jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, lahf_i, 
+    lar_i, lcall_i, lds_i, lea_i, leave_i, les_i, lfs_i, lgdt_i, lgs_i, lidt_i, 
+    lldt_i, lmsw_i, lods_i, loop_i, loope_i, loopne_i, loopnz_i, loopz_i, lsl_i, 
+    ltr_i, mov_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
+    outs_i, pop_i, popa_i, popf_i, push_i, pusha_i, pushf_i, rcl_i, rcr_i, rol_i, 
+    ror_i, sahf_i, sal_i, sar_i, sbb_i, scas_i, seta_i, setae_i, setb_i, setbe_i, 
+    setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
+    setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
+    setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, shl_i, shr_i, stc_i, 
+    std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i};
 
 
 
@@ -94,7 +108,7 @@ int dispatcher(char * mnemonic, cs_insn * insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aaa_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
     if ((*al & 0x0F > 9) || (test_Flag(AF))){
@@ -120,7 +134,7 @@ int aaa_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aad_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
     *al = *ah * 10 + *al;
@@ -143,7 +157,7 @@ int aad_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aam_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
 
@@ -167,7 +181,7 @@ int aam_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int aas_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint8_t * al = (uint8_t *) &eax;
     uint8_t * ah = al+1;
 
@@ -195,7 +209,7 @@ int aas_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int adc_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -244,7 +258,7 @@ int adc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int add_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -293,7 +307,7 @@ int add_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int and_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -344,7 +358,7 @@ int and_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int arpl_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -386,7 +400,7 @@ int arpl_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bound_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -425,7 +439,7 @@ int bound_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bsf_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -474,7 +488,7 @@ int bsf_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bsr_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -523,7 +537,7 @@ int bsr_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bt_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -570,7 +584,7 @@ int bt_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int btc_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -625,7 +639,7 @@ int btc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int btr_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -680,7 +694,7 @@ int btr_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int bts_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -740,7 +754,7 @@ int call_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cbw_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint8_t * al = (uint8_t *)&eax;
     uint16_t * ax = (uint16_t *)&eax;
 
@@ -760,7 +774,7 @@ int cbw_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cwde_i(cs_insn *insn){
-    
+    eip += insn->size;
     uint16_t * ax = (uint16_t *)&eax;
 
     (*ax >> 15)?(eax |=(0xFFFF0000 | *ax)):(eax &=(0x0000FFFF & *ax));
@@ -779,7 +793,7 @@ int cwde_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int clc_i(cs_insn *insn){
-    
+    eip += insn->size;
     clear_Flag(CF);
     return 0;
 }
@@ -796,7 +810,7 @@ int clc_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cld_i(cs_insn *insn){
-    
+    eip += insn->size;
     clear_Flag(DF); /* After CLD is executed, string operations will increment the index registers (SI and/or DI) that they use. ?*/
     return 0;
 }
@@ -813,7 +827,7 @@ int cld_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cli_i(cs_insn *insn){
-    
+    eip += insn->size;
     clear_Flag(IF);
     return 0;
 }
@@ -830,7 +844,7 @@ int cli_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int cmc_i(cs_insn *insn){
-    
+    eip += insn->size;
     complement_Flag(CF);
     return 0;
 }
@@ -851,7 +865,7 @@ int cmp_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int dec_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     uint32_t res = 0x0, oper1 = 0x0;
@@ -888,6 +902,7 @@ int dec_i(cs_insn *insn){
 
 
 int mov_i(cs_insn *insn){
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -926,7 +941,7 @@ int mov_i(cs_insn *insn){
 }
 
 int push_i(cs_insn*insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
 
@@ -954,7 +969,7 @@ int push_i(cs_insn*insn){
 }
 
 int pop_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
@@ -979,7 +994,7 @@ int pop_i(cs_insn *insn){
 
 
 int sub_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -1018,7 +1033,7 @@ int sub_i(cs_insn *insn){
 }
 
 int or_i(cs_insn *insn){
-    
+    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -1056,6 +1071,45 @@ int or_i(cs_insn *insn){
     return 0;
 }
 
+int xor_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val;
+    if (op2.type == X86_OP_REG){
+        val = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        val = op2.imm;
+    }else if (op2.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    if (op1.type == X86_OP_REG){
+        void * p = regs[op1.reg];
+        uint8_t base = regs_size[op1.reg];
+        switch(base){
+            case 0x8:
+                *((uint8_t *) p)^= (val & 0xFF);
+                break;
+            case 0x10:
+                *((uint16_t *) p) ^= (val & 0xFFFF);
+                break;
+            case 0x20:
+                *((uint32_t *) p) ^= val;
+                break;
+            default:
+                *((uint32_t *) p) ^= val;
+                break;
+        }
+    }else if (op1.type == X86_OP_MEM){
+        *((uint32_t *)(mem+eff_addr(op1.mem))) ^= val;
+    }
+    //op1 cant be X86_OP_IMM
+    return 0;
+}
+
 
 
 uint32_t reg_val(int reg_id){
@@ -1083,6 +1137,394 @@ uint32_t reg_val(int reg_id){
         //return -1;
     }
 }
+
+int cmps_i (cs_insn *insn){
+    eip += insn->size;
+}
+
+int cwd_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int daa_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int das_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int div_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int hlt_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int idiv_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int imul_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int in_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int inc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int int_i (cs_insn *insn){
+    eip += insn->size;
+} 
+    int into_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int iret_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int ja_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jae_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jb_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jbe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jcxz_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int je_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jg_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jge_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jle_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jmp_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jna_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnae_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnb_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnbe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jne_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jng_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnge_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnle_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jno_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jnp_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jns_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jo_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jp_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jpe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int jpo_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int js_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lahf_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lar_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lcall_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lds_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lea_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int leave_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int les_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lfs_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lgdt_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lgs_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lidt_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lldt_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lmsw_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lods_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int loop_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int loope_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int loopne_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int loopnz_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int loopz_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int lsl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int ltr_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int movs_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int movsx_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int movzx_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int mul_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int neg_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int nop_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int not_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int out_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int outs_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int popa_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int popf_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int pusha_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int pushf_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int rcl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int rcr_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int rol_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int ror_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sahf_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sal_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sar_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sbb_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int scas_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int seta_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setae_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setb_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setbe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sete_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setg_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setge_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setle_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setna_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnae_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnb_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnbe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setne_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setng_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnge_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnle_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setno_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setnp_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setns_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int seto_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setp_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setpe_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int setpo_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sets_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int shl_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int shr_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int stc_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int std_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int sti_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int stos_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int test_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int wait_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int xchg_i (cs_insn *insn){
+    eip += insn->size;
+} 
+int xlat_i (cs_insn *insn){
+    eip += insn->size;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 uint32_t eff_addr(x86_op_mem m){
     uint32_t base = 0, index = 0, disp = 0, segment = 0;

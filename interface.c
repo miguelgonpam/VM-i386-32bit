@@ -9,7 +9,7 @@ extern uint32_t eflags;
 extern uint8_t * mem;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 
-int rows, cols;//, scroll;
+int rows, cols;
 WINDOW * win_stack, * win_regs, * win_code;
 
 void init_interface(){
@@ -43,23 +43,18 @@ void draw_regs(){
 void draw_stack(){
     werase(win_stack);
     mvwprintw(win_stack, 1, 5, "STACK: ");
-
     
     int i=0;
-    int lim = cols - REGISTERS_HEIGHT - 3 ;
-    int j = (STACK_BOTTOM - esp)/4;    
-
+    int lim = rows - REGISTERS_HEIGHT - 3 ;
+    /* Substraction with unsigned ints so we must cast to int */
+    int j = ((int)(STACK_BOTTOM - esp))/4;    
     do{
-        if (j != 0){
+        if (j > 0){
             mvwprintw(win_stack, 2 + i, 2, "0x%08x : 0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
         }
         i++;
     }while(i <= lim && i < j);
-    /*
-    for (int i = 0; i < 5; i++) {
-        mvwprintw(win_stack, i + 2, 2, "0x%X", 0xFF - i);
-    }
-    */
+
     box(win_stack, 0, 0);
     wrefresh(win_stack);
 }
@@ -81,13 +76,6 @@ void draw_code(char ** lineas, int count, int eip_ind){
         }
     }
     wrefresh(win_code);
-
-    // Control de scroll
-    //if (ch == KEY_DOWN && scroll < num_lineas - 1){
-    //    scroll++;
-    //}else if (ch == KEY_UP && scroll > 0){
-    //    scroll--;
-    //}
 }
 
 void exit_interface(){

@@ -69,7 +69,7 @@ void dump_mem(uint32_t off, uint32_t m){
 }
 
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[], char *envp[]){
    /* INITIALIZATION */
    system("clear"); //execve?
    if(!initialize())
@@ -77,14 +77,14 @@ int main(int argc, char *argv[]){
 
    uint32_t ini, r;
 
-   if(read_elf_file(argc, argv, &ini, &r)){
+   if(read_elf_file(argc, argv, envp, &ini, &r)){
       perror("elf");
       exit(1);
    }
 
    init_interface();
    csh handle;
-   cs_insn *insn;
+   cs_insn *insn, *ins;
    size_t count;
 
 
@@ -108,8 +108,8 @@ int main(int argc, char *argv[]){
       lineas[i]=malloc(MAX_STR);
    }
 
-   /* Char to get users char and scr to scroll instructions screen*/
-   int ch = 0, scr = 0;
+   /* Char to get users char and scr to scroll instructions screen, focus to focus on code or*/
+   int ch = 0, scr = 0, focus = 0;
 
    /* Initialize scr to EIP instr*/
    for(int i=0; i<count;i++){
@@ -138,14 +138,21 @@ int main(int argc, char *argv[]){
       draw_code(lineas, rows, eip_ind);
       ch = getch();
 
-      if (ch == KEY_ENTER){
-
+      if ('\n' == ch || KEY_RIGHT == ch){
+          /* Disassemble again the eip instruction because if its not on the screen,
+             we cannot know its index within insn array.
+             The 1 indicates to only disassemble 1 instruction.
+          */
+         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+            return -1;
+         if(dispatcher(ins[0].mnemonic, &ins[0]) == -1){
+            exit(1);
+         }
       }
       else if (ch == KEY_DOWN && scr < count - (rows - REGISTERS_HEIGHT - 2))
         scr++;
       else if (ch == KEY_UP && scr > 0)
         scr--;
-      
       
    }
 
@@ -156,38 +163,7 @@ int main(int argc, char *argv[]){
    cs_free(insn, count);
    
    
-   //getchar();
    exit_interface();
-   
-
-   
-   
-
-   /* */
-
-   /* DECODE VARIABLES */
-   /*
-   csh handle;
-   cs_insn *insn;
-   size_t count;
-   if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
-        return -1;
-    
-   cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
-   */
-
-
-   /* One instruction forward */
-   /*
-   while(false){
-      step(handle, mem+eip, sizeof(mem)-eip, eip, 0, &insn);
-      eip+=insn[0].size;
-      //exec instr
-
-      cs_free(insn, count);
-   }
-
-   */
 
    free(mem);
 
