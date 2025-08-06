@@ -120,7 +120,7 @@ int main(int argc, char *argv[]){
    }
    
    
-   do{
+   while (ch != 'q'){
       int eip_ind = -1;
       for (size_t i = 0; i < MIN(rows, count -scr); i++) {
          uint32_t addr = insn[i+scr].address;
@@ -135,16 +135,19 @@ int main(int argc, char *argv[]){
       }
       draw_regs();
       draw_stack();
+      draw_code(lineas, rows, eip_ind);
+      ch = getch();
+
       if (ch == KEY_ENTER){
-         
+
       }
       else if (ch == KEY_DOWN && scr < count - (rows - REGISTERS_HEIGHT - 2))
         scr++;
       else if (ch == KEY_UP && scr > 0)
         scr--;
       
-      draw_code(lineas, rows, eip_ind);
-   }while ((ch = getch()) != 'q');
+      
+   }
 
 
    /* Free memory */
