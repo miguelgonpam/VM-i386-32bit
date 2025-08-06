@@ -138,7 +138,7 @@ int main(int argc, char *argv[], char *envp[]){
       draw_code(lineas, rows, eip_ind);
       ch = getch();
 
-      if ('\n' == ch || KEY_RIGHT == ch){
+      if ('\n' == ch){
           /* Disassemble again the eip instruction because if its not on the screen,
              we cannot know its index within insn array.
              The 1 indicates to only disassemble 1 instruction.
@@ -146,7 +146,7 @@ int main(int argc, char *argv[], char *envp[]){
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
             return -1;
          dispatcher(ins[0].mnemonic, &ins[0]);
-         /* If EIP instr is not visible on current screen*/
+         /* If EIP instr is not visible on current screen */
          if (eip_ind < 0){
             /* Find EIP and set it at the top of the screen */
             for(int i=0; i<count;i++){
@@ -156,7 +156,9 @@ int main(int argc, char *argv[], char *envp[]){
                }
             }
          }else{
+            /* If EIP instr is visible set it to the top */
             scr += eip_ind;
+            scr++;
          }
          
          
