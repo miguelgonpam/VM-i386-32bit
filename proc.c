@@ -12,6 +12,7 @@
 
 #define MIN(a,b) ((a > b)? (b) : (a))
 #define MAX_STR 50
+#define MAX_BRK 25
 
 typedef int (*InstrFunc)(uint8_t *);
 
@@ -68,6 +69,15 @@ void dump_mem(uint32_t off, uint32_t m){
    }
 }
 
+uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
+   for (int i=0; i<size; i++){
+      if (arr[i] == val)
+         return 1;
+   }
+   return 0;
+}
+
+
 
 int main(int argc, char *argv[], char *envp[]){
    /* INITIALIZATION */
@@ -112,7 +122,7 @@ int main(int argc, char *argv[], char *envp[]){
    }
 
    /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or*/
-   int ch = 0, scr_c = 0, scr_s = 0, focus = 0;
+   int ch = 0, old_ch = 0, scr_c = 0, scr_s = 0, focus = 0;
 
    /* Initialize scr_c to EIP instr*/
    for(int i=0; i<count;i++){
@@ -122,6 +132,8 @@ int main(int argc, char *argv[], char *envp[]){
       }
    }
    
+   uint32_t brkpts[MAX_BRK];
+   uint8_t brk_ctr = 0;
    
    while ('q' != ch){
       int eip_ind = -1;
@@ -139,9 +151,14 @@ int main(int argc, char *argv[], char *envp[]){
       draw_regs();
       draw_stack(scr_s);
       draw_code(lineas, rows, eip_ind);
+      draw_cmd();
       ch = getch();
 
-      if ('\n' == ch){
+      if('\n' == ch){
+         /* Repeat last choice if ENTER is pressed */
+         ch = old_ch;
+      }
+      if ('s' == ch){
           /* Disassemble again the eip instruction because if its not on the screen,
              we cannot know its index within insn array.
              The 1 indicates to only disassemble 1 instruction.
@@ -156,34 +173,89 @@ int main(int argc, char *argv[], char *envp[]){
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
             if (insn[i].address == eip){
+               /* If it is the first instruction, show it,
+                  If it is the second or greater, let the previous one show */
                scr_c = i?i-1:i;
                break;
             }
          }
          /* Set top of stack at the top of stack window */
          scr_s=0;
-         
-         
+      }else if('c' == ch){   
+         /* While doesnt it a breakpoint, continue executing */
+         while (!contains(brkpts, brk_ctr, eip)){
+            /* Disassemble again the eip instruction because if its not on the screen,
+               we cannot know its index within insn array.
+               The 1 indicates to only disassemble 1 instruction.
+            */
+            if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+               return -1;
+
+            /* Check interrupts ???*/
+            dispatcher(ins[0].mnemonic, &ins[0]);
+         }
+         /* Find EIP and set it at the top of the screen */
+         for(int i=0; i<count;i++){
+            if (insn[i].address == eip){
+               /* If it is the first instruction, show it,
+                  If it is the second or greater, let the previous one show */
+               scr_c = i?i-1:i;
+               break;
+            }
+         }
+         /* Set top of stack at the top of stack window */
+         scr_s=0;
+
       }else if (KEY_DOWN == ch){
-         if (focus == 0 && scr_c < count - (rows - REGISTERS_HEIGHT - 2)){
+         /* Focus is set on Code and scr_c doesnt overflow */
+         if (focus == 0 && scr_c < count - (rows - H_REGS - 2)){
+            /* Scroll down */
             scr_c++;
          }
+         /* Focus is set on Stack, overflow checked in draw_regs() */
          if (focus == 1 ){
+            /* Scroll down */
             scr_s++;
          }
       }else if (KEY_UP == ch){
+         /* Focus is set on Code and scr_c doesnt underflow */
          if (focus == 0 && scr_c > 0){
+            /* Scroll up */
             scr_c--;
          }
+         /* Focus is set on Stack and scr_s doesnt underflow */
          if (focus == 1 && scr_s > 0){
+            /* Scroll up */
             scr_s--;
          }
       }else if(KEY_LEFT == ch){
+         /* Switch scroll focus to Code */
          focus = 0;
       }else if(KEY_RIGHT == ch){
+         /* Switch scroll focus to Stack */
          focus = 1;
+      }else if('b' == ch){
+         char str[MAX_STR];
+         int res = 0, c = 0;
+         uint32_t dir;
+
+         /* While string received not matches the format 0x00000000 */
+         while(!res){
+            cmd_get_str(str, MAX_STR,c);
+            res = sscanf(str, "0x%08x", &dir);
+            c = 1;
+         }
+         /* Store breakpoint */
+         brkpts[brk_ctr]=dir;
+         /* Increment breakpoint counter */
+         brk_ctr++;
+         /* If counter overflows MAX, override the existing ones*/
+         brk_ctr %= MAX_BRK;
+         
+         //printf("0x%08x %10u", dir, dir);
+
       }
-        
+      old_ch = ch;
       
    }
 
