@@ -14,47 +14,15 @@
 #define MAX_STR 50
 #define MAX_BRK 25
 
-typedef int (*InstrFunc)(uint8_t *);
-
-//REGISTERS
+/* REGISTERS */
 extern uint8_t * mem;
 extern uint32_t eflags;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 extern uint32_t * regs[8];
 extern uint8_t * regs8[8];
 
+/* Screen display size */
 extern int rows, cols;
-
-// AUXILIARY INSTRUCTION FUNCTIONS
-
-void printAll(){
-   printf("\neax    : 0x%08x\t\tecx    : 0x%08x\t\tedx    : 0x%08x\t\tebx    : 0x%08x\nesp    : 0x%08x\t\tebp    : 0x%08x\t\tesi    : 0x%08x\t\tedi    : 0x%08x\neip    : 0x%08x\t\teflags : 0x%08x\t\tcs     : 0x%08x\t\tds     : 0x%08x\nfs     : 0x%08x\t\tss     : 0x%08x\t\tes     : 0x%08x\t\tgs     : 0x%08x\n", eax, ecx, edx, ebx, esp, ebp, esi, edi, eip, eflags,cs, ds, fs, ss, es, gs);
-}
-
-void printStack(){
-   //printf();
-}
-
-void printPointers(){
-   printf("\neax    : 0x%p\t\tecx    : 0x%p\t\tedx    : 0x%p\t\tebx    : 0x%p\nesp    : 0x%p\t\tebp    : 0x%p\t\tesi    : 0x%p\t\tedi    : 0x%p\neip    : 0x%p\t\teflags : 0x%p\t\tcs     : 0x%p\t\tds     : 0x%p\nfs     : 0x%p\t\tss     : 0x%p\t\tes     : 0x%p\t\tgs     : 0x%p\n", &eax, &ecx, &edx, &ebx, &esp, &ebp, &esi, &edi, &eip, &eflags,&cs, &ds, &fs, &ss, &es, &gs);
-}
-
-/**
-   Makes one step into the execution. If count is 0 executes 1 instruction. If count is 1 executes all
-   instructions within the code array.
-
-   @param hand csh handler for capstone decoder.
-   @param code array containing the i386 bytecode.
-   @param code_size size of the array containing the i386 bytecode.
-   @param address start address (should be eip).
-   @param count number of instructions to decode. 0 is 1 instruction, 1 is all within the array.
-   @param in pointer to instruction struct. Stores all the decoded data.
-*/
-void step(csh hand, const uint8_t *code, size_t code_size, uint64_t address, size_t count, cs_insn **in){
-
-   count = cs_disasm(hand, code, sizeof(code), 0x8048000, count, in); //poner 0 a 1 para solo decodificar una instr
-                                                                        //poner direccion a eip
-}
 
 /**
    Dumps the memory from the direction offset. Dumps m words of memory (understanding a word as 4 bytes).
@@ -69,6 +37,15 @@ void dump_mem(uint32_t off, uint32_t m){
    }
 }
 
+/**
+ *  Returns 1 if a value is contained in a certain array or 0 if not.
+ *
+ *  @param arr is the array to check in.
+ *  @param size is arr's size
+ *  @param val is the value to look for.
+ *
+ *  @return 1 if val is found or 0 if not.
+ */
 uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
    for (int i=0; i<size; i++){
       if (arr[i] == val)
@@ -78,45 +55,66 @@ uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
 }
 
 
-
+/** 
+ * Main function. Executes the i386 emulator.
+ *
+ *  @param argc number of arguments (argv size).
+ *  @param argv array containing pointer to args.
+ *  @param envp array containing pointer to environment variables.
+ *
+ *  @return 0 if the execution is sucessful or any other value if not.
+ *
+ */
 int main(int argc, char *argv[], char *envp[]){
    /* INITIALIZATION */
    system("clear"); //execve?
+
+   /* Initializes some registers and allocates memory for mem variable */
    if(!initialize())
       return 1;
 
+   /* ini is the first executable instruction's address, r is the last */
    uint32_t ini, r;
 
+   /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
    if(read_elf_file(argc, argv, envp, &ini, &r)){
       perror("elf");
       exit(1);
    }
 
-   
+   /* Handler for disassembling */
    csh handle;
+   /* insn is the pointer to instructions array, ins is the step by step instruction to execute */
    cs_insn *insn, *ins;
+   /* Number of instructions disassembled */
    size_t count;
 
-
+   /* Sets arch */
    if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
         return -1;
-    
+   
+   /* Activate detail feature. Useful for obtaining operands and other info */
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn); //poner 0 a 1 para solo decodificar una instr
+   /* Disassemble all executable data loaded into mem. From ini to r. Stores it into insn array. */
+   /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
+   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
    if (!count){
       printf("Failed to disassemble code\n");
       return 1;
    }
 
+   /* Initializes ncurses interaface */
    init_interface();
 
+   /* Allocates memory for pointer array. Its used to store the code lines to print. i.e "<0x08049752>:pop esi" */
    char **lineas = malloc(rows * sizeof(char *));
    if (lineas == NULL){
       perror("malloc");
       exit(1);
    }
 
+   /* Allocates memory for each pointer so it can store a string. */
    for (int i = 0; i<rows; i++){
       lineas[i]=malloc(MAX_STR);
    }
@@ -132,11 +130,16 @@ int main(int argc, char *argv[], char *envp[]){
       }
    }
    
+   /* Initialize breakpoints array */
    uint32_t brkpts[MAX_BRK];
+   /* Initialize breakpoints counter */
    uint8_t brk_ctr = 0;
    
+   /* While q is not pressed, what would quit the program */
    while ('q' != ch){
+      /* EIP index, if its negative, EIP is not visible on the current screen, due to scroll */
       int eip_ind = -1;
+
       for (size_t i = 0; i < MIN(rows, count -scr_c); i++) {
          uint32_t addr = insn[i+scr_c].address;
          if (addr == eip){
@@ -148,12 +151,16 @@ int main(int argc, char *argv[], char *envp[]){
          //}
          //eip += insn[i].size;
       }
+      /* Draw registers, code, stack and cmd box */
       draw_regs();
       draw_stack(scr_s);
       draw_code(lineas, rows, eip_ind);
       draw_cmd();
+
+      /* Gets user's option */
       ch = getch();
 
+      /* If user's choice is ENTER key */
       if('\n' == ch){
          /* Repeat last choice if ENTER is pressed */
          ch = old_ch;
@@ -255,6 +262,7 @@ int main(int argc, char *argv[], char *envp[]){
          //printf("0x%08x %10u", dir, dir);
 
       }
+      /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;
       
    }
@@ -265,9 +273,10 @@ int main(int argc, char *argv[], char *envp[]){
    free(lineas);
    cs_free(insn, count);
    
-   
+   /* Exit interface */
    exit_interface();
 
+   /* Free all memory (4GB on the heap) */
    free(mem);
 
    return 0;
