@@ -28,7 +28,7 @@ const char *inss[] = {
     "jpo","js","lahf","lar","lcall","lds","lea","leave","les","lfs",
     "lgdt","lgs","lidt","lldt","lmsw","lods","loop","loope","loopne","loopnz",
     "loopz","lsl","ltr","mov","movs","movsx","movzx","mul","neg","nop","not",
-    "or","out","outs","pop","popa","popf","push","pusha","pushf","rcl","rcr",
+    "or","out","outs","pop","popa","popf","push","pusha","pushf","ret","rcl","rcr",
     "rol","ror","sahf","sal","sar","sbb","scas","seta","setae","setb","setbe",
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
@@ -45,7 +45,7 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     lar_i, lcall_i, lds_i, lea_i, leave_i, les_i, lfs_i, lgdt_i, lgs_i, lidt_i, 
     lldt_i, lmsw_i, lods_i, loop_i, loope_i, loopne_i, loopnz_i, loopz_i, lsl_i, 
     ltr_i, mov_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
-    outs_i, pop_i, popa_i, popf_i, push_i, pusha_i, pushf_i, rcl_i, rcr_i, rol_i, 
+    outs_i, pop_i, popa_i, popf_i, push_i, pusha_i, pushf_i, ret_i, rcl_i, rcr_i, rol_i, 
     ror_i, sahf_i, sal_i, sar_i, sbb_i, scas_i, seta_i, setae_i, setb_i, setbe_i, 
     setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
@@ -64,6 +64,14 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
 int initialize(){
     /* Initialize registers. EFLAGS is already set in flags.c */
     esp = STACK_BOTTOM;
+
+    /* Initialize segments */
+    cs = 0x23;
+    ds = 0x2b;
+    ss = 0x2b;
+    es = 0x2b;
+    fs = 0x00;
+    gs = 0x00;
 
     mem = (uint8_t *)calloc(sizeof(uint8_t), UINT32_MAX ); //4GB de memoria del i386 (32 bits) inicializada a 00 cada byte
     if (!mem)
@@ -321,27 +329,39 @@ int and_i(cs_insn *insn){
         val = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
 
+    uint32_t res;
+    uint8_t base;
     if (op1.type == X86_OP_REG){
         void * p = regs[op1.reg];
-        uint8_t base = regs_size[op1.reg];
+        base = regs_size[op1.reg];
         switch(base){
             case 0x8:
                 *((uint8_t *) p) &= (val & 0xFF);
+                res = (uint32_t)*((uint8_t *) p);
                 break;
             case 0x10:
                 *((uint16_t *) p) &= (val & 0xFFFF);
+                res = (uint32_t)*((uint16_t *) p);
                 break;
             case 0x20:
                 *((uint32_t *) p) &= val;
+                res = *((uint32_t *) p);
                 break;
             default:
                 *((uint32_t *) p) &= val;
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) &= val;
+        uint32_t addr = eff_addr(op1.mem);
+        *((uint32_t *)(mem+addr)) &= val;
+        res = *((uint32_t *)(mem+addr));
+        base = 0x20;
     }
     //op1 cant be X86_OP_IMM
+    sign(res, base)?set_Flag(SF):clear_Flag(SF);
+    zero(res)?set_Flag(ZF):clear_Flag(ZF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
     clear_Flag(CF);
     clear_Flag(OF);
 }
@@ -737,8 +757,40 @@ int bts_i(cs_insn *insn){
     return 0;
 }
 
+int ret_i(cs_insn *insn){
+    /* Pop return address from Stack */
+    eip = read32(esp);
+    esp+=4;
+    cs_x86 x86 = insn->detail->x86;
+
+    if (x86.op_count == 1){
+        esp += x86.operands[0].imm;
+    }
+
+    /* Adjust privilege based on Opcode*/
+
+    return 0;
+}
+
 int call_i(cs_insn *insn){
-    
+    /* Next EIP, the one to push */
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+    if(op1.type == X86_OP_REG){
+        val = reg_val(op1.reg);
+    }else if(op1.type == X86_OP_IMM){
+        val = op1.imm;
+    }else{
+        val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+    }
+    /* Push old EIP*/
+    esp -=4;
+    write32(esp, eip);
+    /* New EIP is the operand of the instruction */
+    eip = val;
+
     return 0;
 }
 
@@ -1046,28 +1098,41 @@ int or_i(cs_insn *insn){
     }else if (op2.type == X86_OP_MEM){
         val = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
-
+    uint32_t res;
+    uint8_t base;
     if (op1.type == X86_OP_REG){
         void * p = regs[op1.reg];
-        uint8_t base = regs_size[op1.reg];
+        base = regs_size[op1.reg];
         switch(base){
             case 0x8:
                 *((uint8_t *) p)|= (val & 0xFF);
+                res = (uint32_t)*((uint8_t *) p);
                 break;
             case 0x10:
                 *((uint16_t *) p) |= (val & 0xFFFF);
+                res = (uint32_t)*((uint16_t *) p);
                 break;
             case 0x20:
                 *((uint32_t *) p) |= val;
+                res = *((uint32_t *) p);
                 break;
             default:
                 *((uint32_t *) p) |= val;
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) |= val;
+        uint32_t addr = eff_addr(op1.mem);
+        *((uint32_t *)(mem+addr)) |= val;
+        res = *((uint32_t *)(mem+addr));
+        base = 0x20;
     }
     //op1 cant be X86_OP_IMM
+    sign(res, base)?set_Flag(SF):clear_Flag(SF);
+    zero(res)?set_Flag(ZF):clear_Flag(ZF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+    clear_Flag(CF);
+    clear_Flag(OF);
     return 0;
 }
 
@@ -1085,57 +1150,44 @@ int xor_i(cs_insn *insn){
     }else if (op2.type == X86_OP_MEM){
         val = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
-
+    uint32_t res;
+    uint8_t base;
     if (op1.type == X86_OP_REG){
         void * p = regs[op1.reg];
-        uint8_t base = regs_size[op1.reg];
+        base = regs_size[op1.reg];
         switch(base){
             case 0x8:
                 *((uint8_t *) p)^= (val & 0xFF);
+                res = (uint32_t)*((uint8_t *) p);
                 break;
             case 0x10:
                 *((uint16_t *) p) ^= (val & 0xFFFF);
+                res = (uint32_t)*((uint16_t *) p);
                 break;
             case 0x20:
                 *((uint32_t *) p) ^= val;
+                res = res = *((uint32_t *) p);
                 break;
             default:
                 *((uint32_t *) p) ^= val;
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) ^= val;
+        uint32_t addr = eff_addr(op1.mem);
+        *((uint32_t *)(mem+addr)) ^= val;
+        res = *((uint32_t *)(mem+addr));
+        base = 0x20;
     }
     //op1 cant be X86_OP_IMM
+    sign(res, base)?set_Flag(SF):clear_Flag(SF);
+    zero(res)?set_Flag(ZF):clear_Flag(ZF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+    clear_Flag(CF);
+    clear_Flag(OF);
+
+
     return 0;
-}
-
-
-
-uint32_t reg_val(int reg_id){
-    if (reg_id < 0 || reg_id > 49){
-        return -1;
-    }
-    void * p = regs[reg_id];
-    uint8_t base = regs_size[reg_id];
-    if (p != NULL && base != 0){
-        switch(base){
-            case 0x8:
-                return (uint32_t)*((uint8_t *) p);
-                break;
-            case 0x10:
-                return (uint32_t)*((uint16_t *) p);
-                break;
-            case 0x20:
-                return (uint32_t)*((uint32_t *) p);
-                break;
-            default:
-                return (uint32_t)*((uint32_t *) p);
-                break;
-        }
-    }else{
-        //return -1;
-    }
 }
 
 int cmps_i (cs_insn *insn){
@@ -1282,6 +1334,28 @@ int lds_i (cs_insn *insn){
 } 
 int lea_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+    uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
+
+    if(op1.type != X86_OP_REG || op2.type != X86_OP_MEM)
+        return -1;
+
+    uint32_t addr = eff_addr(op2.mem);
+    if (2 == s){
+        /* Operand size override -> prefix = 0x66 */
+        uint16_t * p = (uint16_t *)regs[op1.reg];
+        *p = (uint16_t)addr;
+        
+    }else{
+        /* Usual operand size */
+        uint32_t * p = (uint32_t *)regs[op1.reg];
+        *p = addr;
+    }
+    return 0;
+
+
 } 
 int leave_i (cs_insn *insn){
     eip += insn->size;
@@ -1499,9 +1573,56 @@ int sti_i (cs_insn *insn){
 int stos_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+
 int test_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint32_t val;
+    if (op2.type == X86_OP_REG){
+        val = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        val = op2.imm;
+    }else if (op2.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    uint32_t res;
+    uint8_t base;
+    if (op1.type == X86_OP_REG){
+        void * p = regs[op1.reg];
+        base = regs_size[op1.reg];
+        switch(base){
+            case 0x8:
+                res = (uint32_t)*((uint8_t *) p) & (val & 0xFF);
+                break;
+            case 0x10:
+                res = (uint32_t)*((uint16_t *) p) & (val & 0xFFFF);
+                break;
+            case 0x20:
+                res = *((uint32_t *) p) & val;
+                break;
+            default:
+                res = *((uint32_t *) p) & val;
+                break;
+        }
+    }else if (op1.type == X86_OP_MEM){
+        uint32_t addr = eff_addr(op1.mem);
+        res = *((uint32_t *)(mem+addr)) & val;
+        base = 0x20;
+    }
+    //op1 cant be X86_OP_IMM
+    sign(res, base)?set_Flag(SF):clear_Flag(SF);
+    zero(res)?set_Flag(ZF):clear_Flag(ZF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+    clear_Flag(CF);
+    clear_Flag(OF);
 } 
+
+
 int wait_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -1536,10 +1657,11 @@ uint32_t eff_addr(x86_op_mem m){
     if (m.scale != 0)
         scale = m.scale;
     disp = m.disp;
-    if (m.segment != X86_REG_INVALID) //could be ignored (flat arch)
+    if (m.segment != X86_REG_INVALID){ //could be ignored (flat arch)
         segment = reg_val(m.segment);
-
-    return segment + base + index*scale + disp;
+    }
+    
+    return (uint32_t)((int32_t)segment + (int32_t)base + (int32_t)index*(int32_t)scale + (int32_t)disp);
 
 }
 
@@ -1573,4 +1695,30 @@ uint32_t read32(uint32_t addr) {
            (mem[addr + 1] << 8) |
            (mem[addr + 2] << 16) |
            (mem[addr + 3] << 24);
+}
+
+uint32_t reg_val(int reg_id){
+    if (reg_id < 0 || reg_id > 49){
+        return -1;
+    }
+    void * p = regs[reg_id];
+    uint8_t base = regs_size[reg_id];
+    if (p != NULL && base != 0){
+        switch(base){
+            case 0x8:
+                return (uint32_t)*((uint8_t *) p);
+                break;
+            case 0x10:
+                return (uint32_t)*((uint16_t *) p);
+                break;
+            case 0x20:
+                return (uint32_t)*((uint32_t *) p);
+                break;
+            default:
+                return (uint32_t)*((uint32_t *) p);
+                break;
+        }
+    }else{
+        //return -1;
+    }
 }

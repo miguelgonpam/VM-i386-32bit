@@ -51,10 +51,12 @@ void draw_stack(int scr_s){
     /* Substraction with unsigned ints so we must cast to int */
     int j = ((int)(STACK_BOTTOM - esp))/4;    
     do{
-        if (j > 0){
+        if (j > 0 && esp + 4*i < STACK_BOTTOM){
             mvwprintw(win_stack, 2 + k, 2, "0x%08x : 0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
         }
-        i++;
+        if (esp + 4*i < STACK_BOTTOM){
+            i++;
+        }
         k++;
     }while(k <= lim && i < j);
 

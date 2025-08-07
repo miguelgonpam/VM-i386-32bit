@@ -34,7 +34,7 @@ void load_stack(int argc, char *argv[], char *envp[]){
         envp_emu[i]=esp;
     }
     /* Push argv strings, first last one*/
-    for (int i=n_argv-1; i>=0; i--){
+    for (int i=n_argv-1; i>0; i--){
         char * p = argv[i];
         int len = strlen(p)+1;
 
@@ -58,13 +58,13 @@ void load_stack(int argc, char *argv[], char *envp[]){
     /* Push NULL word to end argv */
     esp -= 4;
     write32(esp, 0x00000000);
-    for (int i=n_argv-1; i>=0; i--){
+    for (int i=n_argv-1; i>0; i--){
         esp-=4;
         write32(esp, argv_emu[i]);
     }
     /* Push argc */
     esp -= 4;
-    write32(esp, argc); 
+    write32(esp, argc-1); 
 
 }
 

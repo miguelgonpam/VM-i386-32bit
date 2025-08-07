@@ -148,20 +148,17 @@ int main(int argc, char *argv[], char *envp[]){
           */
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
             return -1;
+
+         /* Check interrupts ???*/
          dispatcher(ins[0].mnemonic, &ins[0]);
-         /* If EIP instr is not visible on current screen */
-         if (eip_ind < 0){
-            /* Find EIP and set it at the top of the screen */
-            for(int i=0; i<count;i++){
-               if (insn[i].address == eip){
-                  scr_c = i;
-                  break;
-               }
+
+
+         /* Find EIP and set it at the top of the screen */
+         for(int i=0; i<count;i++){
+            if (insn[i].address == eip){
+               scr_c = i?i-1:i;
+               break;
             }
-         }else{
-            /* If EIP instr is visible set it to the top */
-            scr_c += eip_ind;
-            scr_c++;
          }
          /* Set top of stack at the top of stack window */
          scr_s=0;

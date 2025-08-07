@@ -8,7 +8,7 @@ void clear_Flag(uint32_t f);
 void complement_Flag(uint32_t f);
 int test_Flag(uint32_t f);
 int parity(uint32_t vv);
-int zero(uint8_t v);
+int zero(uint32_t v);
 int sign(uint32_t v, uint8_t base);
 int overflow(uint32_t op1, uint32_t op2, uint32_t res, uint8_t base);
 int adjust(uint32_t op1, uint32_t op2, uint32_t res);
