@@ -42,13 +42,13 @@ void init_interface(){
     refresh();
 }
 
-void cmd_get_str(char * str, size_t size, uint8_t c){
+void cmd_get_str(char * str, char * txt,size_t size, uint8_t c){
     werase(win_cmd);
     
     if (c){
-        mvwprintw(win_cmd, 1, 1, "Wrong format, Breakpoint on direction : (0x00000000 format)");
+        mvwprintw(win_cmd, 1, 1, "Wrong format, %s", txt);
     }else{
-        mvwprintw(win_cmd, 1, 1, "Breakpoint on direction : (0x00000000 format)");
+        mvwprintw(win_cmd, 1, 1, "%s", txt);
     }
     
     mvwprintw(win_cmd, 2, 1, ">>> ");

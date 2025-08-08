@@ -12,7 +12,7 @@ void init_interface();
 void draw_regs();
 void draw_stack();
 void draw_code(char ** lineas, int count, int eip_ind);
-void cmd_get_str(char * str, size_t size, uint8_t c);
+void cmd_get_str(char * str,char *txt, size_t size, uint8_t c);
 void draw_cmd();
 void exit_interface();
 

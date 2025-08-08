@@ -217,6 +217,10 @@ int setpe_i(cs_insn *insn);
 int setpo_i(cs_insn *insn);
 int sets_i(cs_insn *insn);
 int jpe_i(cs_insn *insn);
+int rep_outs_i(cs_insn *insn);
+int rep_ins_i(cs_insn *insn);
+int rep_stos_i(cs_insn *insn);
+int rep_movs_i(cs_insn *insn);
 
 uint32_t reg_val(int reg_id);
 uint32_t eff_addr(x86_op_mem m);

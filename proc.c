@@ -145,7 +145,7 @@ int main(int argc, char *argv[], char *envp[]){
          if (addr == eip){
             eip_ind = i;
          }
-         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.6s %.30s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
+         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.8s %.28s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}
@@ -248,7 +248,7 @@ int main(int argc, char *argv[], char *envp[]){
 
          /* While string received not matches the format 0x00000000 */
          while(!res){
-            cmd_get_str(str, MAX_STR,c);
+            cmd_get_str(str, "Breakpoint on direction : (0x00000000 format)",MAX_STR,c);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
@@ -261,6 +261,43 @@ int main(int argc, char *argv[], char *envp[]){
          
          //printf("0x%08x %10u", dir, dir);
 
+      }else if('f' == ch){
+         /* Sets one instruction or stack addr (depending on focus variable) at the top of its window (either code or stack) */
+         char str[MAX_STR];
+         int res = 0, c = 0;
+         uint32_t dir;
+         char txt[MAX_STR];
+
+         /* If focus is et on code, ask for code address, if focus is 1, ask for stack address */
+         focus?snprintf(txt, MAX_STR, "Stack address to lookup : (0x00000000 format)"):snprintf(txt, MAX_STR,"Code address to lookup : (0x00000000 format)");
+
+         /* While string received not matches the format 0x00000000 */
+         while(!res){
+            cmd_get_str(str, txt, MAX_STR, c);
+            res = sscanf(str, "0x%08x", &dir);
+            c = 1;
+         }
+
+         if (focus){
+            int i = 0;
+            /* Find user's address and set it at the top of Stack window*/
+            for (uint32_t v = esp; v < STACK_BOTTOM; v+=4){
+               if (v == dir){
+                  scr_s = i;
+                  break;
+               }
+               i++;
+            }
+         }else{
+            for (int i=0;i<count;i++){
+               if (dir == insn[i].address){
+                  scr_c = i;
+                  break;
+               }
+            }
+         }
+
+         
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;

@@ -33,7 +33,7 @@ const char *inss[] = {
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
     "setns","seto","setp","setpe","setpo","sets","shl","shr","stc","std","sti",
-    "stos","sub","test","wait","xchg","xlat","xor"
+    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movs", "rep outs", "rep stos"
     };
 
 Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
@@ -50,7 +50,8 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
     setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, shl_i, shr_i, stc_i, 
-    std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i};
+    std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
+    rep_movs_i, rep_outs_i, rep_stos_i};
 
 
 
@@ -2166,7 +2167,25 @@ int xlat_i (cs_insn *insn){
     eip += insn->size;
 }
 
+int rep_stos_i(cs_insn *insn){
+    //const char *inss[] = { }; 
+    //insn.mnemonic;
+}
 
+int rep_ins_i(cs_insn *insn){
+    //const char *inss[] = { }; 
+    //insn.mnemonic;
+}
+
+int rep_movs_i(cs_insn *insn){
+    //const char *inss[] = { }; 
+    //insn.mnemonic;
+}
+
+int rep_outs_i(cs_insn *insn){
+    //const char *inss[] = { }; 
+    //insn.mnemonic;
+}
 
 
 
