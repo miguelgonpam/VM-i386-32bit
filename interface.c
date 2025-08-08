@@ -63,7 +63,7 @@ void cmd_get_str(char * str, size_t size, uint8_t c){
 
 void draw_cmd(){
     werase(win_cmd);
-
+    
     box(win_cmd, 0, 0);
     wrefresh(win_cmd);
 }

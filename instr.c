@@ -23,9 +23,9 @@ const char *inss[] = {
     "aaa","aad","aam","aas","adc","add","and","bt","bts","call","cbw","clc",
     "cld","cli","cmc","cmp","cmps","cwd","cwde","daa","das","dec","div",
     "hlt","idiv","imul","in","inc","int","into","iret","ja","jae","jb","jbe",
-    "jc","jcxz","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
+    "jc","jcxz","jecxz_i","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
     "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
-    "jpo","js","lahf","lar","lcall","lds","lea","leave","les","lfs",
+    "jpo","js", "jz","lahf","lar","lcall","lds","lea","leave","les","lfs",
     "lgdt","lgs","lidt","lldt","lmsw","lods","loop","loope","loopne","loopnz",
     "loopz","lsl","ltr","mov","movs","movsx","movzx","mul","neg","nop","not",
     "or","out","outs","pop","popa","popf","push","pusha","pushf","ret","rcl","rcr",
@@ -39,9 +39,9 @@ const char *inss[] = {
 Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
     bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmps_i, cwd_i, 
     cwde_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
-    into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, je_i, jg_i, jge_i, jl_i, 
+    into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, jecxz_i, je_i, jg_i, jge_i, jl_i, 
     jle_i, jmp_i, jna_i, jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, 
-    jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, lahf_i, 
+    jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, jz_i, lahf_i, 
     lar_i, lcall_i, lds_i, lea_i, leave_i, les_i, lfs_i, lgdt_i, lgs_i, lidt_i, 
     lldt_i, lmsw_i, lods_i, loop_i, loope_i, loopne_i, loopnz_i, loopz_i, lsl_i, 
     ltr_i, mov_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
@@ -1232,94 +1232,627 @@ int iret_i (cs_insn *insn){
 } 
 int ja_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(CF) && !test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+
 } 
+
 int jae_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jb_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jbe_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(CF) && test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jc_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
 int jcxz_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!(ecx & 0xFFFF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
+int jecxz_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!ecx){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+} 
+
 int je_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
+int jz_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+} 
+
 int jg_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(ZF) && test_Flag(SF) == test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
 int jge_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(SF) == test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
 int jl_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(SF) != test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
 int jle_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(ZF) && test_Flag(SF) != test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jmp_i (cs_insn *insn){
-    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    
+    if(op1.type == X86_OP_REG){
+        val = reg_val(op1.reg);
+    }else if(op1.type == X86_OP_IMM){
+        val = op1.imm;
+    }else{
+        val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+    }
+    eip = val;
+    
+    return 0;
 } 
+
 int jna_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(CF) || test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jnae_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jnb_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jnbe_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(CF) && !test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jnc_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(CF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
 int jne_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jng_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(ZF) || test_Flag(SF) != test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jnge_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(SF) != test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jnl_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(SF) == test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jnle_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(ZF) && test_Flag(SF) == test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jno_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
+
 int jnp_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(PF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jns_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(SF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
+int jnz_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(ZF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+} 
+
 int jo_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(OF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
+}
+
 int jp_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(PF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jpe_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(PF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int jpo_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (!test_Flag(PF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int js_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t val;
+
+    if (test_Flag(SF)){
+        if(op1.type == X86_OP_REG){
+            val = reg_val(op1.reg);
+        }else if(op1.type == X86_OP_IMM){
+            val = op1.imm;
+        }else{
+            val = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        }
+        eip = val;
+    }
+    return 0;
 } 
+
 int lahf_i (cs_insn *insn){
     eip += insn->size;
 } 
