@@ -186,25 +186,40 @@ void draw_regs(){
 
 void draw_stack(int scr_s){
     werase(win_stack);
+    /* Draw window box */
     box(win_stack, 0, 0);
+    /* Draw window title */
     mvwprintw(win_stack, 0, 3, " Stack : ");
     
-    
+    /* First position to draw from the ESP (starting i doublewords from ESP)*/
     int i=scr_s;
+    /* Counter of lines drawn */
     int k = 0;
+    /* Rows available to draw on the window*/
     int lim = rows - H_REGS - 3 ;
     /* Substraction with unsigned ints so we must cast to int */
+    /* Limit of rows available to draw so it doesnt overflow STACK_BOTTOM*/
     int j = ((int)(STACK_BOTTOM - esp))/4;    
     do{
         if (j > 0 && esp + 4*i < STACK_BOTTOM){
+            /* Green color on */
             wattron(win_stack, COLOR_PAIR(3));
-            mvwprintw(win_stack, 1 + k, 2, "0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
+            /* Draw on row k+1 on column 2, the address */
+            mvwprintw(win_stack, 1 + k, 2, "0x%08x", esp + 4*i);    
+            /* Green color off*/
             wattroff(win_stack, COLOR_PAIR(3));
-            mvwprintw(win_stack, 1 + k, 11, " : 0x%08x",  *((uint32_t *)(mem+(esp+4*i))));    
+            /* Draw on row k+1 on column 13, the address value */
+            mvwprintw(win_stack, 1 + k, 12, " : 0x%08x",  *((uint32_t *)(mem+(esp+4*i))));    
         }
-        if (esp + 4*i < STACK_BOTTOM){
+        /*
+            if (esp + 4*i < STACK_BOTTOM){
             i++;
+            }
+        */
+        if (esp + 4*i >= STACK_BOTTOM){
+            break;
         }
+        i++;
         k++;
     }while(k <= lim && i < j);
 
