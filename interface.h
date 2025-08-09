@@ -7,6 +7,7 @@
 
 
 #define REGS_BUFF_S 500
+#define ADDR_TXT_S 15
 
 void init_interface();
 void draw_regs();

@@ -11,7 +11,7 @@
 #include "interface.h"
 
 #define MIN(a,b) ((a > b)? (b) : (a))
-#define MAX_STR 50
+#define MAX_STR 75
 #define MAX_BRK 25
 
 /* REGISTERS */
@@ -108,7 +108,7 @@ int main(int argc, char *argv[], char *envp[]){
    init_interface();
 
    /* Allocates memory for pointer array. Its used to store the code lines to print. i.e "<0x08049752>:pop esi" */
-   char **lineas = malloc(rows * sizeof(char *));
+   char **lineas = malloc(2*rows * sizeof(char *));
    if (lineas == NULL){
       perror("malloc");
       exit(1);
@@ -116,7 +116,10 @@ int main(int argc, char *argv[], char *envp[]){
 
    /* Allocates memory for each pointer so it can store a string. */
    for (int i = 0; i<rows; i++){
-      lineas[i]=malloc(MAX_STR);
+      /* Only for address */
+      lineas[i*2]=malloc(ADDR_TXT_S);
+      lineas[i*2+1]=malloc(MAX_STR);
+
    }
 
    /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or*/
@@ -145,7 +148,8 @@ int main(int argc, char *argv[], char *envp[]){
          if (addr == eip){
             eip_ind = i;
          }
-         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.10s %.26s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
+         snprintf(lineas[i*2], ADDR_TXT_S-1, "<0x%08x>:", addr);
+         snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}
@@ -306,7 +310,9 @@ int main(int argc, char *argv[], char *envp[]){
 
 
    /* Free memory */
-   for (int i = 0; i<MIN(rows, count); i++){ free(lineas[i]); }
+   for (int i = 0; i<rows*2; i++){
+      free(lineas[i]); 
+   }
    free(lineas);
    cs_free(insn, count);
    

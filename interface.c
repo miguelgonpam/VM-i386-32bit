@@ -18,7 +18,13 @@ void init_interface(){
     echo();               // No mostrar entrada
     cbreak();               // Modo sin buffering
     keypad(stdscr, TRUE);   // Habilita teclas especiales
+    start_color();
+    use_default_colors();
+
+    init_pair(2, COLOR_BLUE, -1);
+    init_pair(3, COLOR_GREEN, -1);
     
+
     old_eax = eax;
     old_edx = edx;
     old_esp = esp;
@@ -75,12 +81,10 @@ void draw_regs(){
 
     uint8_t space = (cols-27*3-4)/2;
     space = space > 20?20:space;
-    //mvwprintw(win_regs, 1, 2, "EAX : 0x%08x %010u%*sECX : 0x%08x %010u%*sESI : 0x%08x %010u\n", eax,eax, space,"", ecx,ecx,space,"",esi,esi);    
-    //mvwprintw(win_regs, 2, 2, "EDX : 0x%08x %010u%*sEBX : 0x%08x %010u%*sEDI : 0x%08x %010u\n", edx,edx, space,"", ebx,ebx,space,"",edi,edi);
-    //mvwprintw(win_regs, 3, 2, "ESP : 0x%08x %010u%*sEIP : 0x%08x %010u%*sEBP : 0x%08x %010u\n", esp,esp, space,"",eip,eip,space,"",ebp,ebp);
-    //mvwprintw(win_regs, 4, 2, "DS  : 0x%08x %010u%*sFS  : 0x%08x %010u%*sEFLAGS : 0x%08x\n", ds,ds, space,"",fs,fs,space,"", eflags);
-    //mvwprintw(win_regs, 5, 2, "SS  : 0x%08x %010u%*sES  : 0x%08x %010u%*s[ %2s %2s %2s %2s %2s %2s %2s]\n", ss,ss, space,"", es,es, space,"", c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"");
-    //mvwprintw(win_regs, 6, 2, "CS  : 0x%08x %010u%*sGS  : 0x%08x %010u\n", cs,cs, space,"",gs,gs);
+
+    box(win_regs, 0, 0);
+    mvwprintw(win_regs, 0, 3, " Registers: ");
+    
 
     if(old_eax != eax){
         wattron(win_regs, A_REVERSE);
@@ -171,14 +175,16 @@ void draw_regs(){
         eax,eax,ecx,ecx,edx,edx,ebx,ebx,esi,esi,edi,edi,esp,esp,ebp,ebp,eip,eip,ds,ds,fs,fs,eflags,ss,ss,es,es,c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"",cs,cs,gs,gs);
     mvwprintw(win_regs, 1, 1, buffer);
     */
-    box(win_regs, 0, 0);
+    
     wrefresh(win_regs);
     free(buffer);
 }
 
 void draw_stack(int scr_s){
     werase(win_stack);
-    mvwprintw(win_stack, 1, 5, "STACK: ");
+    box(win_stack, 0, 0);
+    mvwprintw(win_stack, 0, 3, " Stack : ");
+    
     
     int i=scr_s;
     int k = 0;
@@ -187,7 +193,10 @@ void draw_stack(int scr_s){
     int j = ((int)(STACK_BOTTOM - esp))/4;    
     do{
         if (j > 0 && esp + 4*i < STACK_BOTTOM){
-            mvwprintw(win_stack, 2 + k, 2, "0x%08x : 0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
+            wattron(win_stack, COLOR_PAIR(3));
+            mvwprintw(win_stack, 1 + k, 2, "0x%08x", esp + 4*i,  *((uint32_t *)(mem+(esp+4*i))));    
+            wattroff(win_stack, COLOR_PAIR(3));
+            mvwprintw(win_stack, 1 + k, 11, " : 0x%08x",  *((uint32_t *)(mem+(esp+4*i))));    
         }
         if (esp + 4*i < STACK_BOTTOM){
             i++;
@@ -195,22 +204,32 @@ void draw_stack(int scr_s){
         k++;
     }while(k <= lim && i < j);
 
-    box(win_stack, 0, 0);
     wrefresh(win_stack);
 }
 
 void draw_code(char ** lineas, int count, int eip_ind){
     werase(win_code);
     box(win_code, 0, 0);
-
+    mvwprintw(win_code, 0, 3, " Code : ");
     for (int i = 0; i < (rows - H_REGS - H_CMD-2); i++) {
         if (i < count) {
             if ( eip_ind >= 0 && i == eip_ind){
+                /* Print address with blue */
+                wattron(win_code, COLOR_PAIR(2));
+                mvwprintw(win_code, i + 1, 1, "%s", lineas[i*2]);
+                wattroff(win_code, COLOR_PAIR(2));
+
+                /* Print Instruction*/
                 wattron(win_code, A_REVERSE);
-                mvwprintw(win_code, i + 1, 1, "%s", lineas[i]);
+                mvwprintw(win_code, i + 1, ADDR_TXT_S+1, "%s", lineas[i*2+1]);
                 wattroff(win_code, A_REVERSE);
             }else{
-                mvwprintw(win_code, i + 1, 1, "%s", lineas[i]);
+                /* Print address with blue */
+                wattron(win_code, COLOR_PAIR(2));
+                mvwprintw(win_code, i + 1, 1, "%s", lineas[i*2]);
+                wattroff(win_code, COLOR_PAIR(2));
+
+                mvwprintw(win_code, i + 1, ADDR_TXT_S+1, "%s", lineas[i*2+1]);
             }
             
         }
