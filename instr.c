@@ -324,13 +324,13 @@ int adc_i(cs_insn *insn){
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
 
-    uint32_t val;
+    uint32_t val1, val2, res;
     if (op2.type == X86_OP_REG){
-        val = reg_val(op2.reg);
+        val2 = reg_val(op2.reg);
     }else if(op2.type == X86_OP_IMM){
-        val = op2.imm;
+        val2 = op2.imm;
     }else if (op2.type == X86_OP_MEM){
-        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
 
     if (op1.type == X86_OP_REG){
@@ -338,22 +338,41 @@ int adc_i(cs_insn *insn){
         uint8_t base = regs_size[op1.reg];
         switch(base){
             case 0x8:
-                *((uint8_t *) p)+= (val & 0xFF)+test_Flag(CF);
+                val1 = *((uint8_t *) p);
+                *((uint8_t *) p)+= (val2 & 0xFF)+test_Flag(CF);
+                res = *((uint8_t *) p);
                 break;
             case 0x10:
-                *((uint16_t *) p) += (val & 0xFFFF)+test_Flag(CF);
+                val1 = *((uint16_t *) p);
+                *((uint16_t *) p) += (val2 & 0xFFFF)+test_Flag(CF);
+                res = *((uint16_t *) p);
                 break;
             case 0x20:
-                *((uint32_t *) p) += val+test_Flag(CF);
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) += val2+test_Flag(CF);
+                res = *((uint32_t *) p);
                 break;
             default:
-                *((uint32_t *) p) += val+test_Flag(CF);
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) += val2+test_Flag(CF);
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) += (val + test_Flag(CF));
+        uint32_t *p = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        val1 = *p;
+        *p += (val2 + test_Flag(CF));
+        res = *p;
     }
-    //op1 cant be X86_OP_IMM   
+
+    (val1 > res)?set_Flag(CF):clear_Flag(CF);
+    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);  
+    
+    return 0;
 }
 
 /**
@@ -373,13 +392,13 @@ int add_i(cs_insn *insn){
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
 
-    uint32_t val;
+    uint32_t val1, val2, res;
     if (op2.type == X86_OP_REG){
-        val = reg_val(op2.reg);
+        val2 = reg_val(op2.reg);
     }else if(op2.type == X86_OP_IMM){
-        val = op2.imm;
+        val2 = op2.imm;
     }else if (op2.type == X86_OP_MEM){
-        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
 
     if (op1.type == X86_OP_REG){
@@ -387,22 +406,41 @@ int add_i(cs_insn *insn){
         uint8_t base = regs_size[op1.reg];
         switch(base){
             case 0x8:
-                *((uint8_t *) p)+= (val & 0xFF);
+                val1 = *((uint8_t *) p);
+                *((uint8_t *) p)+= (val2 & 0xFF);
+                res = *((uint8_t *) p);
+
                 break;
             case 0x10:
-                *((uint16_t *) p) += (val & 0xFFFF);
+                val1 = *((uint16_t *) p);
+                *((uint16_t *) p) += (val2 & 0xFFFF);
+                res = *((uint16_t *) p);
                 break;
             case 0x20:
-                *((uint32_t *) p) += val;
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) += val2;
+                res = *((uint32_t *) p);
                 break;
             default:
-                *((uint32_t *) p) += val;
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) += val2;
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) += val;
+        val1 = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        *((uint32_t *)(mem+eff_addr(op1.mem))) += val2;
+        res = *((uint32_t *)(mem+eff_addr(op1.mem)));
     }
-    //op1 cant be X86_OP_IMM   
+
+    (val1 > res)?set_Flag(CF):clear_Flag(CF);
+    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);  
+
+    return 0;
 }
 
 /**
@@ -1025,7 +1063,79 @@ int cmc_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  CMP. Compare Two Operands.
+ *
+ *  Opcodes 0x3C, 0x3D, 0x80 /7, 0x81 /7, 0x83 /7, 0x38, 0x39, 0x3A, 0x3B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int cmp_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+    /* Get operands sizes */
+    uint8_t s1 = op1.size, s2 = op2.size;
+    
+    /* Operand 1 and 2 value */
+    uint32_t val1, val2;
+    /* Result */
+    uint32_t res;
+    if (op2.type == X86_OP_REG){
+        val2 = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        /* If imm operand is 1 byte, we need to sign-extend it */
+        if (s2 == 1){
+            if (s1 == 2){
+                val2 = sign_extend8_16(op2.imm);
+            }else if(s1 == 4){
+                val2 = sign_extend8_32(op2.imm);
+            }
+        }else{
+            val2 = op2.imm;
+        }
+    }else if (op2.type == X86_OP_MEM){
+        val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    if (op1.type == X86_OP_REG){
+        void * p = regs[op1.reg];
+        uint8_t base = regs_size[op1.reg];
+        switch(base){
+            case 0x8:
+                val1= *((uint8_t *) p);
+                res = val1- (val2 & 0xFF);
+                break;
+            case 0x10:
+                val1 = *((uint16_t *) p);
+                res = val1 - (val2 & 0xFFFF);
+                break;
+            case 0x20:
+                val1 = *((uint32_t *) p);    
+                res = val1 - val2;
+                break;
+            default:
+                val1 = *((uint32_t *) p);    
+                res = val1 - val2;
+                break;
+        }
+    }else if (op1.type == X86_OP_MEM){
+        val1 = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        res = val1 - val2;
+    }
+
+    (val1 < val2)?set_Flag(CF):clear_Flag(CF);
+    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+       
     return 0;
 }
 
@@ -1049,6 +1159,11 @@ int dec_i(cs_insn *insn){
         void *p = regs[op1.reg];
         uint8_t base = regs_size[op1.reg];
         switch(base){
+            case 0x08:
+                oper1=*((uint8_t*)p);
+                *((uint8_t*)p)-=1;
+                res = *((uint8_t*)p);
+                break;
             case 0x10:
                 oper1=*((uint16_t*)p);
                 *((uint16_t*)p)-=1;
@@ -1062,10 +1177,14 @@ int dec_i(cs_insn *insn){
         }
     }else if (op1.type == X86_OP_MEM){
         uint32_t* p = ((uint32_t *)(mem + eff_addr(op1.mem)));
+        oper1 = *p;
         *p-=1;
         res = *p;
     }
 
+    /* Flags as described on Appendix C */
+    /* CF formula for substracting */
+    (oper1 < 1)?set_Flag(CF):clear_Flag(CF);
     overflow(oper1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
     sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
     (!res)?set_Flag(ZF):clear_Flag(ZF);
@@ -1221,23 +1340,23 @@ int sub_i(cs_insn *insn){
     /* Get operands sizes */
     uint8_t s1 = op1.size, s2 = op2.size;
     
-    /* Operand 2 value */
-    uint32_t val;
+    /* Operand 1 and 2 value */
+    uint32_t val1, val2, res;
     if (op2.type == X86_OP_REG){
-        val = reg_val(op2.reg);
+        val2 = reg_val(op2.reg);
     }else if(op2.type == X86_OP_IMM){
         /* If imm operand is 1 byte, we need to sign-extend it */
         if (s2 == 1){
             if (s1 == 2){
-                val = sign_extend8_16(op2.imm);
+                val2 = sign_extend8_16(op2.imm);
             }else if(s1 == 4){
-                val = sign_extend8_32(op2.imm);
+                val2 = sign_extend8_32(op2.imm);
             }
         }else{
-            val = op2.imm;
+            val2 = op2.imm;
         }
     }else if (op2.type == X86_OP_MEM){
-        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
 
     if (op1.type == X86_OP_REG){
@@ -1245,22 +1364,41 @@ int sub_i(cs_insn *insn){
         uint8_t base = regs_size[op1.reg];
         switch(base){
             case 0x8:
-                *((uint8_t *) p)-= (val & 0xFF);
+                val1 = *((uint8_t *) p);
+                *((uint8_t *) p) -= (val2 & 0xFF);
+                res = *((uint8_t *) p);
                 break;
             case 0x10:
-                *((uint16_t *) p) -= (val & 0xFFFF);
+                val1 = *((uint16_t *) p);
+                *((uint16_t *) p) -= (val2 & 0xFFFF);
+                res = *((uint16_t *) p);
                 break;
             case 0x20:
-                *((uint32_t *) p) -= val;
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) -= val2;
+                res = *((uint32_t *) p);
                 break;
             default:
-                *((uint32_t *) p) -= val;
+                val1 = *((uint32_t *) p);
+                *((uint32_t *) p) -= val2;
+                res = *((uint32_t *) p);
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        *((uint32_t *)(mem+eff_addr(op1.mem))) -= val;
+        uint32_t *p = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        val1 = *p;
+        *p -= val2;
+        res = *p;
     }
-    //op1 cant be X86_OP_IMM   
+    
+    (val1 < val2)?set_Flag(CF):clear_Flag(CF);
+    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+
     return 0;
 }
 
@@ -1422,6 +1560,46 @@ int in_i (cs_insn *insn){
 } 
 int inc_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint32_t res = 0x0, oper1 = 0x0;
+    if (op1.type == X86_OP_REG){
+        void *p = regs[op1.reg];
+        uint8_t base = regs_size[op1.reg];
+        switch(base){
+            case 0x08:
+                oper1=*((uint8_t*)p);
+                *((uint8_t*)p)+=1;
+                res = *((uint8_t*)p);
+                break;
+            case 0x10:
+                oper1=*((uint16_t*)p);
+                *((uint16_t*)p)+=1;
+                res = *((uint16_t*)p);
+                break;
+            case 0x20:
+                oper1=*((uint32_t*)p);
+                *((uint32_t*)p)+=1;
+                res = *((uint32_t*)p);
+                break;
+        }
+    }else if (op1.type == X86_OP_MEM){
+        uint32_t* p = ((uint32_t *)(mem + eff_addr(op1.mem)));
+        oper1 = *p;
+        *p+=1;
+        res = *p;
+    }
+
+    /* Flags as described on Appendix C */
+    /* CF formula for adding */
+    (oper1 > res)?set_Flag(CF):clear_Flag(CF);
+    overflow(oper1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(oper1, 1, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    return 0;
 } 
 int int_i (cs_insn *insn){
     eip += insn->size;
