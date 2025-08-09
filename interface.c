@@ -18,11 +18,15 @@ void init_interface(){
     echo();               // No mostrar entrada
     cbreak();               // Modo sin buffering
     keypad(stdscr, TRUE);   // Habilita teclas especiales
-    start_color();
+
+    if (has_colors()){
+        start_color();
     use_default_colors();
 
     init_pair(2, COLOR_BLUE, -1);
     init_pair(3, COLOR_GREEN, -1);
+    }
+    
     
 
     old_eax = eax;
