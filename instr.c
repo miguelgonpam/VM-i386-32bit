@@ -359,7 +359,7 @@ int adc_i(cs_insn *insn){
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        uint32_t *p = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        uint32_t *p = ((uint32_t *)(mem+eff_addr(op1.mem)));
         val1 = *p;
         *p += (val2 + test_Flag(CF));
         res = *p;
@@ -1385,7 +1385,7 @@ int sub_i(cs_insn *insn){
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        uint32_t *p = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        uint32_t *p = ((uint32_t *)(mem+eff_addr(op1.mem)));
         val1 = *p;
         *p -= val2;
         res = *p;
