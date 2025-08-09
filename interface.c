@@ -21,10 +21,10 @@ void init_interface(){
 
     if (has_colors()){
         start_color();
-    use_default_colors();
+        use_default_colors();
 
-    init_pair(2, COLOR_BLUE, -1);
-    init_pair(3, COLOR_GREEN, -1);
+        init_pair(2, COLOR_BLUE, -1);
+        init_pair(3, COLOR_GREEN, -1);
     }
     
     
