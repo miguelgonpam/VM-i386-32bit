@@ -11,7 +11,7 @@
 /******************************************************/
 typedef int(*Instruction)(cs_insn *insn);
 uint8_t * mem;
-uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0; 
+uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0, gdtr = 0; 
 extern uint32_t eflags;
 
 /* REGISTER            INVL,   AH,   AL,   AX,   BH,   BL,   BP,  BPL,   BX,   CH,   CL,   CS,   CX,   DH,   DI,  DIL,   DL,   DS,   DX,  EAX,  EBP,  EBX,  ECX,  EDI,  EDX,  EFLAGS,  EIP,  EIZ,   ES,  ESI,  ESP, FPSW,   FS,   GS,   IP,  RAX,  RBP,  RBX,  RCX,  RDI,  RDX,  RIP,  RIZ,  RSI,  RSP,   SI,  SIL,   SP,  SPL,   SS  */
@@ -33,7 +33,8 @@ const char *inss[] = {
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
     "setns","seto","setp","setpe","setpo","sets","shl","shr","stc","std","sti",
-    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movs", "rep outs", "rep stos"
+    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movs", "rep outs", "rep stosb",
+    "rep stosw","rep stosd"
     };
 
 Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
@@ -51,7 +52,13 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
     setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, shl_i, shr_i, stc_i, 
     std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
-    rep_movs_i, rep_outs_i, rep_stos_i};
+    rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i};
+
+
+
+
+
+
 
 
 
@@ -79,6 +86,11 @@ int initialize(){
         return 0;
 
     return 1;
+
+    /* Initialize GDT at GDT_ADDR (defined in instr.h) */
+    GDT_Descriptor * gdt = (GDT_Descriptor *)(mem + GDT_ADDR);
+    init_gdt(gdt);
+    gdtr = GDT_ADDR;
 }
 
 
@@ -90,7 +102,7 @@ int initialize(){
 
 
 int dispatcher(char * mnemonic, cs_insn * insn){
-    const size_t count = sizeof(inss)/sizeof(*inss);
+    const size_t count = sizeof(instructions)/sizeof(*instructions);
     for (int i = 0; i< count ; i++){
         if(strcmp(inss[i], mnemonic) == 0){
             return instructions[i](insn);
@@ -98,6 +110,76 @@ int dispatcher(char * mnemonic, cs_insn * insn){
     }
 
     return -1;
+}
+
+
+/******************************************************/
+/********** Global Descriptors Table (GDT) ************/
+/******************************************************/
+
+void init_gdt(GDT_Descriptor *table){
+    for (uint8_t i=0; i<GDT_ENTRIES; i++){
+        table[i].limit_low = 0xFFFF;
+        table[i].base_low = 0x0000;
+        table[i].base_mid = 0x00;
+        table[i].base_high = 0x00;
+        switch(i){
+            case 0:
+                /* Null Descriptor, should have limit at 0x0000000*/
+                table[i].access = 0x00;
+                table[i].granularity = 0x00;
+                table[i].limit_low = 0x0000;
+                break;
+            case 1:
+                table[i].access = 0x9A;
+                table[i].granularity = 0xCF;
+                break;
+            case 2:
+                table[i].access = 0x92;
+                table[i].granularity = 0xCF;
+                break;
+            case 3:
+                table[i].access = 0x89;
+                table[i].granularity = 0x0;
+                break;
+            case 4:
+                table[i].access = 0xFA;
+                table[i].granularity = 0xCF;
+                break;
+            case 5:   
+                table[i].access = 0xF2;
+                table[i].granularity = 0xCF;
+                break;
+            default:
+                table[i].access = 0x89;
+                table[i].granularity = 0x0;
+                break;
+        }
+
+    }
+}
+
+uint32_t get_gdt_base(uint16_t selector){
+    /* Obtain descriptor number (bits 15-3) */
+    uint16_t n = (selector >> 3) & 0x1FFF;
+    /* Avoid overflow */
+    n %= GDT_ENTRIES;
+    /* Obtain descriptor */
+    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr + n*sizeof(GDT_Descriptor));
+    /* Build base from 3 parts of the base */
+    uint32_t base = descriptor->base_low | (descriptor->base_mid << 16) | (descriptor->base_high << 24);
+    return base;
+}
+
+uint32_t get_gdt_limit(uint16_t selector){
+    /* Obtain descriptor number (bits 15-3) */
+    uint16_t n = (selector >> 3) & 0x1FFF;
+    /* Avoid overflow */
+    n %= GDT_ENTRIES;
+    /* Obtain descriptor */
+    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr + n*sizeof(GDT_Descriptor));
+    
+    return descriptor->limit_low;
 }
 
 
@@ -2168,8 +2250,46 @@ int xlat_i (cs_insn *insn){
 }
 
 int rep_stos_i(cs_insn *insn){
-    //const char *inss[] = { }; 
-    //insn.mnemonic;
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint8_t s = op1.size;
+    /* Address size of 32b, use ES:EDI*/
+    uint32_t destreg = get_gdt_base(es)+edi;
+
+    /* Assuming ECX holds a positive value*/
+    if (s == 1){
+        /* STOSB, using AL and moving 1 byte each iteration */
+        uint8_t * al = (uint8_t *)&eax;
+        while(ecx != 0){
+            /* ES:DestReg := AL */
+            *((uint8_t *)(mem+destreg))=*al;
+            /* If DF = 0, destreg+=1, else destreg-=1 */
+            !test_Flag(DF)?destreg++:destreg--;
+            ecx--;
+        }
+    }else if(s == 2){
+        /* STOSB, using AX and moving 1 word (2Byte) each iteration */
+        uint16_t * ax = (uint16_t *)&eax;
+        while(ecx != 0){
+            /* ES:DestReg := AX */
+            *((uint16_t *)(mem+destreg))=*ax;
+            /* If DF = 0, destreg+=2, else destreg-=2 */
+            destreg += !test_Flag(DF)?2:-2;
+            ecx--;
+        }
+    }else{
+        /* STOSD, using EAX and moving 1 doubleword (4Byte) each iteration */
+        while(ecx != 0){
+            /* ES:DestReg := EAX */
+            *((uint32_t *)(mem+destreg))=eax;
+            /* If DF = 0, destreg+=4, else destreg-=4 */
+            destreg+=!test_Flag(DF)?4:-4;
+            ecx--;
+        }
+    }
+    return 0;
+
 }
 
 int rep_ins_i(cs_insn *insn){
@@ -2211,6 +2331,7 @@ uint32_t eff_addr(x86_op_mem m){
     disp = m.disp;
     if (m.segment != X86_REG_INVALID){ //could be ignored (flat arch)
         segment = reg_val(m.segment);
+        segment = get_gdt_base((uint16_t)segment);
     }
     
     return (uint32_t)((int32_t)segment + (int32_t)base + (int32_t)index*(int32_t)scale + (int32_t)disp);

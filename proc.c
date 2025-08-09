@@ -145,7 +145,7 @@ int main(int argc, char *argv[], char *envp[]){
          if (addr == eip){
             eip_ind = i;
          }
-         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.8s %.28s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
+         snprintf(lineas[i], MAX_STR, "<0x%08x>:%.10s %.26s",addr, insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}

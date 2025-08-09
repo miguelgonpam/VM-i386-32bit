@@ -8,9 +8,25 @@
 
 #define STACK_BOTTOM 0xFFF00000
 #define STACK_TOP (STACK_BOTTOM - 0x22000)
+#define GDT_ENTRIES 0x8
+#define GDT_ADDR 0xC0FFF000
+
+typedef struct{
+    uint16_t limit_low;
+    uint16_t base_low;
+    uint8_t base_mid;
+    uint8_t access;
+    uint8_t granularity;
+    uint8_t base_high;
+}GDT_Descriptor;
+
+
 
 int initialize();
 int dispatcher(char * mnemonic, cs_insn * insn);
+void init_gdt(GDT_Descriptor *gdt);
+uint32_t get_gdt_base(uint16_t selector);
+uint32_t get_gdt_limit(uint16_t selector);
 int aaa_i(cs_insn *insn);
 int aad_i(cs_insn *insn);
 int aam_i(cs_insn *insn);
