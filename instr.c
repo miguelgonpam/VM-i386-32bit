@@ -117,6 +117,11 @@ int dispatcher(char * mnemonic, cs_insn * insn){
 /********** Global Descriptors Table (GDT) ************/
 /******************************************************/
 
+/**
+ * Initializes the Global Descriptor Table. Segment selectors with TI=0 access it.
+ *
+ * @param table the struct GDT_Descriptor array to initialize. Its virtual address is stored in gdtr.
+ */
 void init_gdt(GDT_Descriptor *table){
     for (uint8_t i=0; i<GDT_ENTRIES; i++){
         table[i].limit_low = 0xFFFF;
@@ -159,6 +164,13 @@ void init_gdt(GDT_Descriptor *table){
     }
 }
 
+/**
+ *  Obtains a segment descriptor's base.
+ *
+ *  @param selector the selector to find out its base.
+ *
+ *  @return the segments base.
+ */
 uint32_t get_gdt_base(uint16_t selector){
     /* Obtain descriptor number (bits 15-3) */
     uint16_t n = (selector >> 3) & 0x1FFF;
@@ -171,6 +183,13 @@ uint32_t get_gdt_base(uint16_t selector){
     return base;
 }
 
+/**
+ *  Obtains a segment descriptor's limit.
+ *
+ *  @param selector the selector to find out its limit.
+ *
+ *  @return the segments limit.
+ */
 uint32_t get_gdt_limit(uint16_t selector){
     /* Obtain descriptor number (bits 15-3) */
     uint16_t n = (selector >> 3) & 0x1FFF;
@@ -515,8 +534,8 @@ int bound_i(cs_insn *insn){
     uint8_t base = regs_size[op1.reg];
     if (base == 0x10){ /* 16-bit */
         uint16_t * r = (uint16_t *) p;
-        rsrc1 = *((uint16_t *)(mem + eff_addr(op2.mem))); /* Offset 0 bytes with m32&32 */
-        rsrc2 = *(((uint16_t *)(mem + eff_addr(op2.mem)))+1); /* Offset 2 bytes with m32&32*/
+        rsrc1 = *((uint16_t *)(mem + eff_addr(op2.mem))); /* Offset 0 bytes with m16&16 */
+        rsrc2 = *(((uint16_t *)(mem + eff_addr(op2.mem)))+1); /* Offset 2 bytes with m16&16*/
         if( *r < rsrc1 || *r > rsrc2){
             return -5; /* Interrupt 5 */
         }
@@ -840,6 +859,17 @@ int bts_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  RET. Return from procedure.
+ *
+ *  Opcode 0xC2, 0xC3, 0xCA, 0xCB.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int ret_i(cs_insn *insn){
     /* Pop return address from Stack */
     eip = read32(esp);
@@ -855,6 +885,17 @@ int ret_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  CALL. Call procedure.
+ *
+ *  Opcode 0xE8, 0x9A, 0xFF /2, 0xFF /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Flags may change if a task switch occurs.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int call_i(cs_insn *insn){
     /* Next EIP, the one to push */
     eip += insn->size;
@@ -1035,7 +1076,17 @@ int dec_i(cs_insn *insn){
 }
 
 
-
+/**
+ *  MOV. Move data.
+ *
+ *  Opcodes 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0xA0, 0xA1, 0xA2, 0xA3, 0xB0, 0xB8, 0xC6, 0xC7.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int mov_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1075,13 +1126,26 @@ int mov_i(cs_insn *insn){
     return 0;
 }
 
+
+/**
+ *  PUSH. Push operand onto the stack.
+ *
+ *  Opcodes 0x50+/r, 0x6A, 0x68, 0x0E, 0x16, 0x1E, 0x06, 0x0F A0, 0x0F A8. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int push_i(cs_insn*insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
 
     uint32_t val;
-    uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
+    uint8_t s = op1.size;
+
     if (op1.type == X86_OP_REG){
         val = reg_val(op1.reg);
     }else if(op1.type == X86_OP_IMM){
@@ -1103,11 +1167,22 @@ int push_i(cs_insn*insn){
 
 }
 
+/**
+ *  POP. Pop a word from the stack.
+ *
+ *  Opcodes 0x8F /0, 0x58 + r, 0x1F, 0x07, 0x17, 0x0F A1, 0x0F A9. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int pop_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
-    uint8_t s = x86.prefix[0] == 0x66 ? 2 : 4;
+    uint8_t s = op1.size;
 
     if (op1.type == X86_OP_REG){
         void * p = regs[op1.reg];
@@ -1127,18 +1202,40 @@ int pop_i(cs_insn *insn){
 }
 
 
-
+/**
+ *  SUB. Integer substraction.
+ *
+ *  Opcodes 0x2C, 0x2D, 0x80 /5, 0x81 /5, 0x83 /5, 0x28, 0x29, 0x2A, 0x2B. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF and CF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sub_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
-
+    /* Get operands sizes */
+    uint8_t s1 = op1.size, s2 = op2.size;
+    
+    /* Operand 2 value */
     uint32_t val;
     if (op2.type == X86_OP_REG){
         val = reg_val(op2.reg);
     }else if(op2.type == X86_OP_IMM){
-        val = op2.imm;
+        /* If imm operand is 1 byte, we need to sign-extend it */
+        if (s2 == 1){
+            if (s1 == 2){
+                val = sign_extend8_16(op2.imm);
+            }else if(s1 == 4){
+                val = sign_extend8_32(op2.imm);
+            }
+        }else{
+            val = op2.imm;
+        }
     }else if (op2.type == X86_OP_MEM){
         val = *((uint32_t *)(mem + eff_addr(op2.mem)));
     }
@@ -1167,6 +1264,17 @@ int sub_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  OR. Logical Inclusive OR.
+ *
+ *  Opcodes 0x0C, 0x0D, 0x80 /1, 0x81 /1, 0x83 /1, 0x08, 0x09, 0x0A, 0x0B. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF = 0, CF = 0.  SF, ZF, AF, and PF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int or_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1219,6 +1327,17 @@ int or_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  XOR. Logical Exclusive XOR.
+ *
+ *  Opcodes 0x34, 0x34, 0x80 /6, 0x81 /6, 0x83 /6, 0x30, 0x31, 0x32, 0x33. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF = 0, CF = 0.  SF, ZF, AF, and PF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int xor_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1307,12 +1426,24 @@ int inc_i (cs_insn *insn){
 int int_i (cs_insn *insn){
     eip += insn->size;
 } 
-    int into_i (cs_insn *insn){
+int into_i (cs_insn *insn){
     eip += insn->size;
 } 
 int iret_i (cs_insn *insn){
     eip += insn->size;
-} 
+}
+
+/**
+ *  JA. Jump  if above (CF = 0 and ZF = 0).
+ *
+ *  Opcode 0x77.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int ja_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1333,6 +1464,17 @@ int ja_i (cs_insn *insn){
 
 } 
 
+/**
+ *  JAE. Jump  if above or equal(CF = 0).
+ *
+ *  Opcode 0x73.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jae_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1352,6 +1494,17 @@ int jae_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JB. Jump  if below (CF = 1).
+ *
+ *  Opcode 0x72.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jb_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1371,6 +1524,17 @@ int jb_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JBE. Jump  if below or equal (CF = 1 or ZF = 1).
+ *
+ *  Opcode 0x76.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jbe_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1390,6 +1554,17 @@ int jbe_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JC. Jump  if carry (CF = 1).
+ *
+ *  Opcode 0x72.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jc_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1408,6 +1583,18 @@ int jc_i (cs_insn *insn){
     }
     return 0;
 } 
+
+/**
+ *  JCXZ. Jump  if CX register is 0.
+ *
+ *  Opcode 0xE3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jcxz_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1427,6 +1614,17 @@ int jcxz_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JECXZ. Jump  if ECX register is 0.
+ *
+ *  Opcode 0xE3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jecxz_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1446,6 +1644,17 @@ int jecxz_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JE. Jump  if equal (and ZF = 1).
+ *
+ *  Opcode 0x74.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int je_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1465,6 +1674,17 @@ int je_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JZ. Jump  if equal (ZF = 1).
+ *
+ *  Opcode 0x74.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jz_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1484,6 +1704,17 @@ int jz_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JG. Jump  if greater (ZF = 0 and SF = 0F).
+ *
+ *  Opcode 0x7F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jg_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1502,6 +1733,18 @@ int jg_i (cs_insn *insn){
     }
     return 0;
 } 
+
+/**
+ *  JGE. Jump  if greater or equal (SF = OF).
+ *
+ *  Opcode 0x7D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jge_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1520,6 +1763,18 @@ int jge_i (cs_insn *insn){
     }
     return 0;
 } 
+
+/**
+ *  JL. Jump  if less (SF != OF).
+ *
+ *  Opcode 0x7C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jl_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1538,6 +1793,18 @@ int jl_i (cs_insn *insn){
     }
     return 0;
 } 
+
+/**
+ *  JLE. Jump  if less or equal (SF != OF or ZF = 1).
+ *
+ *  Opcode 0x7E.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jle_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1557,6 +1824,17 @@ int jle_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JMP. Jump .
+ *
+ *  Opcodes 0xEB, 0xE9, 0xFF /4, 0xEA, 0xFF /5, .
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Flags may change if a task switch occurs.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jmp_i (cs_insn *insn){
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
@@ -1575,6 +1853,17 @@ int jmp_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNA. Jump  if not above (CF = 1 or ZF = 1).
+ *
+ *  Opcode 0x76.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jna_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1594,6 +1883,17 @@ int jna_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JA. Jump  if not above or equal (CF = 1).
+ *
+ *  Opcode 0x72.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnae_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1613,6 +1913,17 @@ int jnae_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JNB. Jump  if not below (CF = 0).
+ *
+ *  Opcode 0x73.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnb_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1632,6 +1943,17 @@ int jnb_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JA. Jump  if not below or equal (CF = 0 and ZF = 0).
+ *
+ *  Opcode 0x77.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnbe_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1651,6 +1973,17 @@ int jnbe_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JNC. Jump if not carry (CF = 0).
+ *
+ *  Opcode 0x73.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnc_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1669,6 +2002,18 @@ int jnc_i (cs_insn *insn){
     }
     return 0;
 } 
+
+/**
+ *  JNE. Jump  if above (CF = 0 and ZF = 0).
+ *
+ *  Opcode 0x77.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jne_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1688,6 +2033,17 @@ int jne_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNG. Jump if not greater (ZF = 1 or SF != OF).
+ *
+ *  Opcode 0x7E.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jng_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1707,6 +2063,17 @@ int jng_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNGE. Jump if not greater or equal (SF != OF).
+ *
+ *  Opcode 0x7C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnge_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1726,6 +2093,18 @@ int jnge_i (cs_insn *insn){
     return 0;
 }
 
+
+/**
+ *  JNL. Jump if not less (SF = OF).
+ *
+ *  Opcode 0x7D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnl_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1745,6 +2124,17 @@ int jnl_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNLE. Jump if not less or equal (SF = OF and ZF = 0).
+ *
+ *  Opcode 0x7F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnle_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1764,6 +2154,17 @@ int jnle_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNO. Jump if not overflow (OF = 0).
+ *
+ *  Opcode 0x71.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jno_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1783,7 +2184,17 @@ int jno_i (cs_insn *insn){
     return 0;
 } 
 
-
+/**
+ *  JNL. Jump if not parity (PF = 0).
+ *
+ *  Opcode 0x7B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnp_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1803,6 +2214,17 @@ int jnp_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNL. Jump if not sign (SF = 0).
+ *
+ *  Opcode 0x79.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jns_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1822,6 +2244,17 @@ int jns_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JNZ. Jump if not zero (ZF = 0).
+ *
+ *  Opcode 0x75.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jnz_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1841,6 +2274,17 @@ int jnz_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JO. Jump if overflow (OF = 1).
+ *
+ *  Opcode 0x70.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jo_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1860,6 +2304,17 @@ int jo_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  JP. Jump if parity (PF = 1).
+ *
+ *  Opcode 0x7A.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jp_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1879,6 +2334,17 @@ int jp_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JPE. Jump if parity even (PF = 1).
+ *
+ *  Opcode 0x7A.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jpe_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1898,6 +2364,17 @@ int jpe_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JPO. Jump if parity odd (PF = 0).
+ *
+ *  Opcode 0x7B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int jpo_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1917,6 +2394,17 @@ int jpo_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  JS. Jump if sign (SF = 1).
+ *
+ *  Opcode 0x78.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int js_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1948,6 +2436,18 @@ int lcall_i (cs_insn *insn){
 int lds_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  LEA. Load Effective Address.
+ *
+ *  Opcode 0x8D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lea_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -1962,7 +2462,7 @@ int lea_i (cs_insn *insn){
     if (2 == s){
         /* Operand size override -> prefix = 0x66 */
         uint16_t * p = (uint16_t *)regs[op1.reg];
-        *p = (uint16_t)addr;
+        *p = (uint16_t)(addr & 0xFFFF);
         
     }else{
         /* Usual operand size */
@@ -2186,11 +2686,69 @@ int std_i (cs_insn *insn){
 int sti_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  STOS. Store String Data.
+ *
+ *  Opcode 0xAA, 0xAB.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int stos_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    uint8_t s = op1.size;
+    /* Address size of 32b, so we use ES:EDI*/
+    uint32_t segbase = get_gdt_base(es);
+    uint32_t destreg;
+
+    if (s == 1){
+        /* STOSB, using AL and moving 1 byte each iteration */
+        uint8_t * al = (uint8_t *)&eax;
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := AL */
+        *((uint8_t *)(mem+destreg))=*al;
+        /* If DF = 0, destreg+=1, else destreg-=1 */
+        !test_Flag(DF)?edi++:edi--;
+            
+    }else if(s == 2){
+        /* STOSB, using AX and moving 1 word (2Byte) each iteration */
+        uint16_t * ax = (uint16_t *)&eax;
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := AX */
+        *((uint16_t *)(mem+destreg))=*ax;
+        /* If DF = 0, destreg+=2, else destreg-=2 */
+        edi += !test_Flag(DF)?2:-2;
+        
+    }else{
+        /* STOSD, using EAX and moving 1 doubleword (4Byte) each iteration */
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := EAX */
+        *((uint32_t *)(mem+destreg))=eax;
+        /* If DF = 0, destreg+=4, else destreg-=4 */
+        edi+=!test_Flag(DF)?4:-4;
+    }
 } 
 
-
+/**
+ *  TEST. Logical Compare.
+ *
+ *  Opcode 0xA8, 0xA9, 0xF6 /0, 0xF7 /0, 0x84, 0x85.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF = 0, CF = 0, SF, ZF and PF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int test_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -2249,42 +2807,61 @@ int xlat_i (cs_insn *insn){
     eip += insn->size;
 }
 
+/**
+ *  REP. Repeat Following String Operation (STOS).
+ *
+ *  Opcode 0xF3 AA, 0xF3 AB.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rep_stos_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
+    /* Operand size in bytes */
     uint8_t s = op1.size;
     /* Address size of 32b, use ES:EDI*/
-    uint32_t destreg = get_gdt_base(es)+edi;
+    uint32_t segbase = get_gdt_base(es);
+    uint32_t destreg;
 
     /* Assuming ECX holds a positive value*/
     if (s == 1){
         /* STOSB, using AL and moving 1 byte each iteration */
         uint8_t * al = (uint8_t *)&eax;
         while(ecx != 0){
+            /* DestReg = ES:EDI*/
+            destreg = segbase + edi;
             /* ES:DestReg := AL */
             *((uint8_t *)(mem+destreg))=*al;
             /* If DF = 0, destreg+=1, else destreg-=1 */
-            !test_Flag(DF)?destreg++:destreg--;
+            !test_Flag(DF)?edi++:edi--;
             ecx--;
         }
     }else if(s == 2){
         /* STOSB, using AX and moving 1 word (2Byte) each iteration */
         uint16_t * ax = (uint16_t *)&eax;
         while(ecx != 0){
+            /* DestReg = ES:EDI*/
+            destreg = segbase + edi;
             /* ES:DestReg := AX */
             *((uint16_t *)(mem+destreg))=*ax;
             /* If DF = 0, destreg+=2, else destreg-=2 */
-            destreg += !test_Flag(DF)?2:-2;
+            edi += !test_Flag(DF)?2:-2;
             ecx--;
         }
     }else{
         /* STOSD, using EAX and moving 1 doubleword (4Byte) each iteration */
         while(ecx != 0){
+            /* DestReg = ES:EDI*/
+            destreg = segbase + edi;
             /* ES:DestReg := EAX */
             *((uint32_t *)(mem+destreg))=eax;
             /* If DF = 0, destreg+=4, else destreg-=4 */
-            destreg+=!test_Flag(DF)?4:-4;
+            edi+=!test_Flag(DF)?4:-4;
             ecx--;
         }
     }
@@ -2318,7 +2895,13 @@ int rep_outs_i(cs_insn *insn){
 
 
 
-
+/**
+ *  Obtains an effective address using a x86_op_mem argument.
+ * 
+ * @param m struct containing all addressing variables.
+ * 
+ * @return effective address.
+ */
 uint32_t eff_addr(x86_op_mem m){
     uint32_t base = 0, index = 0, disp = 0, segment = 0;
     uint32_t scale = 1;
@@ -2338,6 +2921,14 @@ uint32_t eff_addr(x86_op_mem m){
 
 }
 
+/**
+ * Obtains the result of powing a base to an exponent.
+ * 
+ * @param b base
+ * @param exp exponent
+ * 
+ * @return result of the operation
+ */
 uint32_t pow_i(uint32_t b, uint32_t exp){
     uint32_t result = 1;
     while (exp > 0) {
@@ -2347,11 +2938,23 @@ uint32_t pow_i(uint32_t b, uint32_t exp){
     return result;
 }
 
+/**
+ * Writes a word (16 bits) into the address given.
+ * 
+ * @param addr addres to write on
+ * @param value to write
+ */
 void write16(uint32_t addr, uint16_t value) {
     mem[addr]     = value & 0xFF;
     mem[addr + 1] = (value >> 8) & 0xFF;
 }
 
+/**
+ * Writes a doubleword (32 bits) into the address given.
+ * 
+ * @param addr addres to write on
+ * @param value to write
+ */
 void write32(uint32_t addr, uint32_t value) {
     mem[addr]     = value & 0xFF;
     mem[addr + 1] = (value >> 8) & 0xFF;
@@ -2359,10 +2962,20 @@ void write32(uint32_t addr, uint32_t value) {
     mem[addr + 3] = (value >> 24) & 0xFF;
 }
 
+/**
+ * Returns a word (16 bits) from the address given.
+ * 
+ * @param addr addres to read from
+ */
 uint16_t read16(uint32_t addr) {
     return mem[addr] | (mem[addr + 1] << 8);
 }
 
+/**
+ * Returns a doubleword (32 bits) from the address given.
+ * 
+ * @param addr addres to read from
+ */
 uint32_t read32(uint32_t addr) {
     return mem[addr] |
            (mem[addr + 1] << 8) |
@@ -2370,6 +2983,9 @@ uint32_t read32(uint32_t addr) {
            (mem[addr + 3] << 24);
 }
 
+/**
+ * Obtains a register value using a reg_id. Reg_id most likely comes from a operand where type is x86_op_reg.
+ */
 uint32_t reg_val(int reg_id){
     if (reg_id < 0 || reg_id > 49){
         return -1;
@@ -2394,4 +3010,37 @@ uint32_t reg_val(int reg_id){
     }else{
         //return -1;
     }
+}
+
+/**
+ * Sign-extends a 8bit value into 32 bits.
+ * 
+ * @param v to sign-extend
+ * 
+ * @return sign-extended value
+ */
+uint32_t sign_extend8_32(uint8_t v){
+    return (v & 0x80)?(v | 0xFFFFFF00):v;
+}
+
+/**
+ * Sign-extends a 16bit value into 32 bits.
+ * 
+ * @param v to sign-extend
+ * 
+ * @return sign-extended value
+ */
+uint32_t sign_extend16_32(uint16_t v){
+    return (v & 0x8000)?(v | 0xFFFF0000):v;
+}
+
+/**
+ * Sign-extends a 8bit value into 16 bits.
+ * 
+ * @param v to sign-extend
+ * 
+ * @return sign-extended value
+ */
+uint16_t sign_extend8_16(uint8_t v){
+    return (v & 0x80)?(v | 0xFF00):v;
 }
