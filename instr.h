@@ -248,4 +248,7 @@ uint32_t read32(uint32_t addr);
 uint32_t sign_extend8_32(uint8_t v);
 uint32_t sign_extend16_32(uint16_t v);
 uint16_t sign_extend8_16(uint8_t v);
+uint32_t zero_extend16_32(uint16_t v);
+uint32_t zero_extend8_32(uint8_t v);
+uint16_t zero_extend8_16(uint8_t v);
 #endif

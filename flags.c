@@ -38,7 +38,7 @@ int parity(uint32_t vv){
         if((v >> i) & 0x1)
             c++;
     }
-    return (c % 2)?1:0;
+    return (!(c % 2))?1:0;
 }
 
 int adjust(uint32_t op1, uint32_t op2, uint32_t res){

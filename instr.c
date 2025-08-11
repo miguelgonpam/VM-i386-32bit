@@ -1245,6 +1245,107 @@ int mov_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  MOVSX. Move with Sign Extend.
+ *
+ *  Opcodes 0x0F BE, 0x0F BF.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int movsx_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Obtain operands sizes */
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint32_t val;
+    /* Obtain SRC value */
+    if (op2.type == X86_OP_REG){
+        val = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        val = op2.imm;
+    }else if (op2.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    if (op1.type != X86_OP_REG){return -1;} /* DEST can only be a register */
+    /* Obtain pointer to DEST register */
+    void * p = regs[op1.reg];
+    if (s1 == 4){
+        /* 32bit DEST register */
+        if (s2 == 2){
+            /* 16bit SRC value */
+            *((uint32_t *)p) = sign_extend16_32((uint16_t) val);
+        }else{
+            /* 8bit SRC value */
+            *((uint32_t *)p) = sign_extend8_32((uint8_t) val);
+        }
+    }else{
+        /* 16bit DEST register */
+        /* Store in DEST sign-extended SRC */
+        *((uint16_t *)p) = sign_extend8_16((uint16_t) val);
+    }
+
+    return 0;
+}
+
+/**
+ *  MOVZX. Move with Zero Extend.
+ *
+ *  Opcodes 0x0F B6, 0x0F B7.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int movzx_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Obtain operands sizes */
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint32_t val;
+    /* Obtain SRC value */
+    if (op2.type == X86_OP_REG){
+        val = reg_val(op2.reg);
+    }else if(op2.type == X86_OP_IMM){
+        val = op2.imm;
+    }else if (op2.type == X86_OP_MEM){
+        val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    if (op1.type != X86_OP_REG){return -1;} /* DEST can only be a register */
+    /* Obtain pointer to DEST register */
+    void * p = regs[op1.reg];
+    if (s1 == 4){
+        /* 32bit DEST register */
+        if (s2 == 2){
+            /* 16bit SRC value */
+            *((uint32_t *)p) = zero_extend16_32((uint16_t) val);
+        }else{
+            /* 8bit SRC value */
+            *((uint32_t *)p) = zero_extend8_32((uint8_t) val);
+        }
+    }else{
+        /* 16bit DEST register */
+        /* Store in DEST sign-extended SRC */
+        *((uint16_t *)p) = zero_extend8_16((uint16_t) val);
+    }
+
+    return 0;
+}
 
 /**
  *  PUSH. Push operand onto the stack.
@@ -2702,12 +2803,7 @@ int ltr_i (cs_insn *insn){
 int movs_i (cs_insn *insn){
     eip += insn->size;
 } 
-int movsx_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int movzx_i (cs_insn *insn){
-    eip += insn->size;
-} 
+
 int mul_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -3221,4 +3317,38 @@ uint32_t sign_extend16_32(uint16_t v){
  */
 uint16_t sign_extend8_16(uint8_t v){
     return (v & 0x80)?(v | 0xFF00):v;
+}
+
+/**
+ * Zero-extends a 8bit value into 32 bits.
+ * 
+ * @param v to zero-extend
+ * 
+ * @return zero-extended value
+ */
+uint32_t zero_extend8_32(uint8_t v){
+    return (v & 0x000000FF);
+}
+
+
+/**
+ * Zero-extends a 16bit value into 32 bits.
+ * 
+ * @param v to zero-extend
+ * 
+ * @return zero-extended value
+ */
+uint32_t zero_extend16_32(uint16_t v){
+    return (v & 0x0000FFFF);
+}
+
+/**
+ * Zero-extends a 8bit value into 16 bits.
+ * 
+ * @param v to zero-extend
+ * 
+ * @return zero-extended value
+ */
+uint16_t zero_extend8_16(uint8_t v){
+    return (v & 0x00FF);
 }
