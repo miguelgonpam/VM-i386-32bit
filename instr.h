@@ -135,8 +135,6 @@ int repne_i(cs_insn *insn);
 int repnz_i(cs_insn *insn);
 int ret_i(cs_insn *insn);
 int sahf_i(cs_insn *insn);
-int sal_i(cs_insn *insn);
-int sar_i(cs_insn *insn);
 int shl_i(cs_insn *insn);
 int shr_i(cs_insn *insn);
 int sbb_i(cs_insn *insn);
@@ -237,6 +235,11 @@ int rep_outs_i(cs_insn *insn);
 int rep_ins_i(cs_insn *insn);
 int rep_stos_i(cs_insn *insn);
 int rep_movs_i(cs_insn *insn);
+int cpuid_i(cs_insn *insn);
+int sar_i(cs_insn *insn);
+int sal_i(cs_insn *insn);
+int cmovne_i(cs_insn *insn);
+
 
 uint32_t reg_val(int reg_id);
 uint32_t eff_addr(x86_op_mem m);

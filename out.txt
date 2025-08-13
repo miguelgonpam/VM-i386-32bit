@@ -6,7 +6,7 @@ bsr--
 bt--
 call
 cld--
-cmp
+cmp--
 dec--
 div
 hlt

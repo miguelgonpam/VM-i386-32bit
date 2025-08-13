@@ -193,7 +193,7 @@ int main(int argc, char *argv[], char *envp[]){
          /* Set top of stack at the top of stack window */
          scr_s=0;
       }else if('c' == ch){   
-         /* While doesnt it a breakpoint, continue executing */
+         /* While doesnt hit a breakpoint, continue executing */
          while (!contains(brkpts, brk_ctr, eip)){
             /* Disassemble again the eip instruction because if its not on the screen,
                we cannot know its index within insn array.
