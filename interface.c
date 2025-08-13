@@ -71,9 +71,9 @@ void cmd_get_str(char * str, char * txt,size_t size, uint8_t c){
     wrefresh(win_cmd);
 }
 
-void draw_cmd(){
+void draw_cmd(char * str){
     werase(win_cmd);
-    
+    mvwprintw(win_cmd, 2, 2, str);
     box(win_cmd, 0, 0);
     wrefresh(win_cmd);
 }

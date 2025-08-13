@@ -159,10 +159,12 @@ int main(int argc, char *argv[], char *envp[]){
       draw_regs();
       draw_stack(scr_s);
       draw_code(lineas, rows, eip_ind);
-      draw_cmd();
+      
 
       /* Gets user's option */
       ch = getch();
+
+      draw_cmd("");
 
       /* If user's choice is ENTER key */
       if('\n' == ch){
@@ -302,6 +304,20 @@ int main(int argc, char *argv[], char *envp[]){
          }
 
          
+      }else if('x' == ch){
+         char str[MAX_STR];
+         int res = 0, c = 0;
+         uint32_t dir;
+
+         /* While string received not matches the format 0x00000000 */
+         while(!res){
+            cmd_get_str(str, "Address to dump content : (0x00000000 format)",MAX_STR,c);
+            res = sscanf(str, "0x%08x", &dir);
+            c = 1;
+         }
+         char txt[25];
+         snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
+         draw_cmd(txt);
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;
