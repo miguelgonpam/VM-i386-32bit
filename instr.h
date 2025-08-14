@@ -230,6 +230,7 @@ int setp_i(cs_insn *insn);
 int setpe_i(cs_insn *insn);
 int setpo_i(cs_insn *insn);
 int sets_i(cs_insn *insn);
+int setz_i(cs_insn *insn);
 int jpe_i(cs_insn *insn);
 int rep_outs_i(cs_insn *insn);
 int rep_ins_i(cs_insn *insn);

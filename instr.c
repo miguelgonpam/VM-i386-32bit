@@ -32,7 +32,7 @@ const char *inss[] = {
     "rol","ror","sahf","sal","sar","sbb","scas","seta","setae","setb","setbe",
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
-    "setns","seto","setp","setpe","setpo","sets","shl","shr","sal", "sar", "stc","std","sti",
+    "setns","seto","setp","setpe","setpo","sets","setz","shl","shr","sal", "sar", "stc","std","sti",
     "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movs", "rep outs", "rep stosb",
     "rep stosw","rep stosd", "cmovne"
     };
@@ -50,7 +50,7 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     ror_i, sahf_i, sal_i, sar_i, sbb_i, scas_i, seta_i, setae_i, setb_i, setbe_i, 
     setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
-    setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, shl_i, shr_i, sal_i, sar_i, stc_i, 
+    setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, setz_i, shl_i, shr_i, sal_i, sar_i, stc_i, 
     std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
     rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i, cmovne_i};
 
@@ -3271,92 +3271,948 @@ int sbb_i (cs_insn *insn){
 } 
 int scas_i (cs_insn *insn){
     eip += insn->size;
-} 
+}
+
+/**
+ *  SETA. Set byte if above (CF = 0 and ZF = 0).
+ *
+ *  Opcode 0x0F 97.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int seta_i (cs_insn *insn){
     eip += insn->size;
-} 
-int setae_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setb_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setbe_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setc_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int sete_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setg_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setge_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setl_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setle_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setna_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnae_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnb_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnbe_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnc_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setne_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setng_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnge_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnl_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnle_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setno_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setnp_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setns_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int seto_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setp_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setpe_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int setpo_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int sets_i (cs_insn *insn){
-    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(CF) && !test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
 } 
 
+/**
+ *  SETAE. Set byte if above or equal (CF = 0).
+ *
+ *  Opcode 0x0F 93.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setae_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETB. Set byte if below (CF = 1).
+ *
+ *  Opcode 0x0F 92.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setb_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETBE. Set byte if below or equal (CF = 1 or ZF = 1).
+ *
+ *  Opcode 0x0F 96.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setbe_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(CF) || test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETC. Set byte if carry (CF = 1).
+ *
+ *  Opcode 0x0F 92.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setc_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETE. Set byte if equal (ZF = 1).
+ *
+ *  Opcode 0x0F 94.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int sete_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETG. Set byte if greater (ZF = 0 or SF = OF).
+ *
+ *  Opcode 0x0F 9F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setg_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(ZF) || test_Flag(OF)==test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETGE. Set byte if greater or equal (OF = SF).
+ *
+ *  Opcode 0x0F 9D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setge_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF) == test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETL. Set byte if less (OF != SF).
+ *
+ *  Opcode 0x0F 9C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setl_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF) != test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETLE. Set byte if less or equal (ZF = 1 and OF != SF).
+ *
+ *  Opcode 0x0F 9E.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setle_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF) != test_Flag(SF) && test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNA. Set byte if not above (CF = 1).
+ *
+ *  Opcode 0x0F 96.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setna_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETAE. Set byte if not above or equal (CF = 1).
+ *
+ *  Opcode 0x0F 92.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnae_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNB. Set byte if not below (CF = 0).
+ *
+ *  Opcode 0x0F 93.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnb_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNBE. Set byte if not below or equal (CF = 0 and ZF = 0).
+ *
+ *  Opcode 0x0F 97.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnbe_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(CF) && !test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNC. Set byte if not carry (CF = 0).
+ *
+ *  Opcode 0x0F 93.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnc_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(CF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNE. Set byte if not equal (ZF = 0).
+ *
+ *  Opcode 0x0F 95.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setne_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNG. Set byte if not greater (ZF = 1 or OF != SF).
+ *
+ *  Opcode 0x0F 9E.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setng_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(ZF) || test_Flag(OF) != test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNGE. Set byte if not greater or equal (OF != SF).
+ *
+ *  Opcode 0x0F 9C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnge_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF) != test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNL. Set byte if not less (OF == SF).
+ *
+ *  Opcode 0x0F 9D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnl_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF) == test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNLE. Set byte if not less or equal (ZF = 1 and OF != SF).
+ *
+ *  Opcode 0x0F 9F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnle_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(ZF) && test_Flag(OF) != test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNO. Set byte if not overflow (OF = 0).
+ *
+ *  Opcode 0x0F 91.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setno_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(OF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNP. Set byte if not parity (PF = 0).
+ *
+ *  Opcode 0x0F 9B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setnp_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(PF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETNS. Set byte if not sign (SF = 0).
+ *
+ *  Opcode 0x0F 99.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setns_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETO. Set byte if overflow (OF = 1).
+ *
+ *  Opcode 0x0F 90.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int seto_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(OF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETP. Set byte if parity (PF = 1).
+ *
+ *  Opcode 0x0F 9A.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setp_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(PF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETPE. Set byte if parity even (PF = 1).
+ *
+ *  Opcode 0x0F 9A.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setpe_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(PF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETPO. Set byte if parity odd (PF = 0).
+ *
+ *  Opcode 0x0F 9B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setpo_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (!test_Flag(PF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+
+} 
+
+/**
+ *  SETS. Set byte if sign (SF = 1).
+ *
+ *  Opcode 0x0F 98.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int sets_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(SF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SETZ. Set byte if zero (ZF = 1).
+ *
+ *  Opcode 0x0F 94.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int setz_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t *p;
+    if (op1.type == X86_OP_REG){
+        p = (uint8_t*)regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }
+
+    if (test_Flag(ZF)){
+        *p = 0x1;
+    }else{
+        *p= 0x0;
+    }
+    return 0;
+} 
+
+/**
+ *  SAL. Shift Arithmetic Left.
+ *
+ *  Opcode 0xC0 /4, 0xC1 /4, 0xD0 /4, 0xD1 /4, 0xD2 /4, 0xD3 /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Affects OF if single shift, else undefined. CF, PF, ZF and SF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sal_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3412,6 +4268,17 @@ int sal_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  SHL. Shift Logical Left.
+ *
+ *  Opcode 0xC0 /4, 0xC1 /4, 0xD0 /4, 0xD1 /4, 0xD2 /4, 0xD3 /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Affects OF if single shift, else undefined. CF, PF, ZF and SF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int shl_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3467,6 +4334,17 @@ int shl_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  SAR. Shift Arithmetic Right.
+ *
+ *  Opcode 0xC0 /7, 0xC1 /7, 0xD0 /7, 0xD1 /7, 0xD2 /7, 0xD3 /7.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Affects OF if single shift, else undefined. CF, PF, ZF and SF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sar_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3516,6 +4394,17 @@ int sar_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  SHR. Shift Logical Rigth.
+ *
+ *  Opcode 0xC0 /5, 0xC1 /5, 0xD0 /5, 0xD1 /5, 0xD2 /5, 0xD3 /5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  Affects OF if single shift, else undefined. CF, PF, ZF and SF as described on Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int shr_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3573,6 +4462,17 @@ int shr_i(cs_insn *insn){
     return 0;
 }
 
+/**
+ *  SHRD. Double Precision Shift Right.
+ *
+ *  Opcode 0xOF AC, 0xOF AD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF, PF, ZF and SF as described on Appendix C, rest are undefined.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int shrd_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3645,15 +4545,55 @@ int shrd_i (cs_insn *insn){
     return 0;
 } 
 
-
+/**
+ *  STC. Set Carry Flag.
+ *
+ *  Opcode 0xF9.
+ *
+ *  No exceptions.
+ *
+ *  CF = 1.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int stc_i (cs_insn *insn){
     eip += insn->size;
+    set_Flag(CF);
+    return 0;
 } 
+
+/**
+ *  STD. Set Direction Flag.
+ *
+ *  Opcode 0xFD.
+ *
+ *  No exceptions.
+ *
+ *  DF = 1.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int std_i (cs_insn *insn){
     eip += insn->size;
+    set_Flag(DF);
+    return 0;
 } 
+
+/**
+ *  STI. Set Interrupt Flag.
+ *
+ *  Opcode 0xFB.    
+ *
+ *  No exceptions.
+ *
+ *  IF = 1.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sti_i (cs_insn *insn){
     eip += insn->size;
+    set_Flag(IF);
+    return 0;
 } 
 
 /**
