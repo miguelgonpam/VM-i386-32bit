@@ -1,6 +1,6 @@
 # VM-i386-32bit
 Virtual machine that executes the i386-32bit Instruction set. \
-The goal is to create a 64-bit program that is able to execute a 32-bit program, ELF32 format. \
+The goal is to create a 64-bit program that is able to execute a i386 32-bit program, ELF32 format. \
 This project is designed to either execute in a x86_64 machine or a x86_64 docker. Ubuntu24.04 is recommended. \
 The syntax should be the following: \
 ```
@@ -8,20 +8,33 @@ The syntax should be the following: \
 ``` 
 
 ## Packages
-In order to the program to work, we need to install the following packages: \
+In order to the program to work, we need to install the following packages: 
 ```
-apt install libcapstone-dev
+apt install libcapstone-dev libncurses-dev
 ```
+`Capstone`library allows to disassemble i386 bytecode. \
+`Ncurses` library implements a graphic interface we are going to use for the host program.
 
-If we also want to compile our own 32-bit executables, we will need an x86_64 version compatible with 32 bits and install the following.
+## Compiling your own 32bit i386 programs
+In order to compile i386 legacy programs (without i686 instructions), we cant use gcc-multilib and the -m32 flag, so we are going to use a cross-compiler.
+We can obtain a cross-compiler using the [Musl-cross-make project](https://github.com/richfelker/musl-cross-make). Musl is a light implementation for the standard libc.
+First we need to create a `config.mak` file and write the following lines. Output folder could be any folder.
 ```
-apt install gcc-multilib
+TARGET = i386-linux-musl
+OUTPUT = /usr/local/gcc-i386
+COMMON_CONFIG += --disable-nls
 ```
-And then compile the program with the `-m32` flag. \
-For example : \
+Then we run the following comands.
 ```
-gcc -m32 -o 32b-prog 32b-prog.c
+make
+sudo make install
 ```
+And we will have the cross compiler on the Output folder. We can either add the `$(OUTPUT)/bin/` folder to the path or create a symbolic link to the i386-linux-musl-gcc object.
+```
+ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
+```
+Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`.
+
 
 ## Files
 `proc.c` is the main file, which will contain the `int main()` function and will use every other file. 
@@ -37,3 +50,6 @@ gcc -m32 -o 32b-prog 32b-prog.c
 
 `loader.h` is the header file that defines the functions needed to load the executable. \
 `loader.c` is the implementation file that actually loads the executable bytecode into the memory. 
+
+`interface.h` is the header file that defines the functions needed to create the program's interface. \
+`interface.c` is the implementation file that implements the interface using the `ncurses` library. 
