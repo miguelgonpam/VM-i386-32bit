@@ -2988,13 +2988,88 @@ int mul_i (cs_insn *insn){
 } 
 int neg_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t s1 = op1.size;
+    void * p;
+    if (op1.type = X86_OP_REG){
+        /* X86_OP_REG */
+        p = regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }/* Can't be X86_OP_IMM*/
+
+    uint32_t oper1, res;
+
+    if (s1 == 1){
+        /* 8bit operand */
+        uint8_t * t = (uint8_t *)p;
+        zero(*t)?clear_Flag(CF):set_Flag(CF);
+        oper1 = *t;
+        *t = 0x0 - *t;
+        res = *t;
+    }else if(s1 == 2){
+        /* 16bit operand */
+        uint16_t * t = (uint16_t *)p;
+        zero(*t)?clear_Flag(CF):set_Flag(CF);
+        oper1 = *t;
+        *t = 0x0 - *t;
+        res = *t;
+    }else{
+        /* 32bit operand */
+        uint32_t * t = (uint32_t *)p;
+        zero(*t)?clear_Flag(CF):set_Flag(CF);
+        oper1 = *t;
+        *t = 0x0 - *t;
+        res = *t;
+    }
+    overflow(0x0, oper1, res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+    zero(res)?set_Flag(ZF):clear_Flag(ZF);
+
+    return 0;
 } 
+
 int nop_i (cs_insn *insn){
     eip += insn->size;
-} 
+}
+
 int not_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t s1 = op1.size;
+    void * p;
+    if (op1.type = X86_OP_REG){
+        /* X86_OP_REG */
+        p = regs[op1.reg];
+    }else{
+        /* X86_OP_MEM */
+        p = mem + eff_addr(op1.mem);
+    }/* Can't be X86_OP_IMM*/
+
+    if (s1 == 1){
+        /* 8bit operand */
+        uint8_t * t = (uint8_t *)p;
+        *t = ~(*t);
+    }else if(s1 == 2){
+        /* 16bit operand */
+        uint16_t * t = (uint16_t *)p;
+        *t = ~(*t);
+    }else{
+        /* 32bit operand */
+        uint32_t * t = (uint32_t *)p;
+        *t = ~(*t);    
+    }
+    
+    return 0;
+}
+
+
 int out_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -3013,17 +3088,180 @@ int pusha_i (cs_insn *insn){
 int pushf_i (cs_insn *insn){
     eip += insn->size;
 } 
+
 int rcl_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+    uint8_t count;
+    if (op2.type == X86_OP_IMM){
+        count = op2.imm; 
+    }else{
+        /* X86_OP_REG is CL */
+        count = *((uint8_t *)regs[op2.reg]);
+    }
+
+    void * t;
+    if (op1.type == X86_OP_REG){
+        t = regs[op1.reg];
+    }else{
+        t = mem + eff_addr(op1.mem);
+    }
+
+    count %= s1*8 +1;
+
+    if (s1 == 1){
+        uint8_t * p = (uint8_t*)t;
+        uint8_t scaped = *p >> (s1*8+1 - count);
+        scaped |= (test_Flag(CF) << count-1);
+        (*p >> (s1*8 -count))?set_Flag(CF):clear_Flag(CF);
+        *p = (*p << count) | scaped;
+    }else if (s1 == 2){
+        uint16_t * p = (uint16_t*)t;
+        uint16_t scaped = *p >> (s1*8+1 - count);
+        scaped |= (test_Flag(CF) << count-1);
+        (*p >> (s1*8 -count))?set_Flag(CF):clear_Flag(CF);
+        *p = (*p << count) | scaped;
+    }else{
+        uint32_t * p = (uint32_t*)t;
+        uint32_t scaped = *p >> (s1*8+1 - count);
+        scaped |= (test_Flag(CF) << count-1);
+        (*p >> (s1*8 -count))?set_Flag(CF):clear_Flag(CF);
+        *p = (*p << count) | scaped;
+    }
+    return 0;
+}
+
 int rcr_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+    uint8_t count;
+    if (op2.type == X86_OP_IMM){
+        count = op2.imm; 
+    }else{
+        /* X86_OP_REG is CL */
+        count = *((uint8_t *)regs[op2.reg]);
+    }
+
+    void * t;
+    if (op1.type == X86_OP_REG){
+        t = regs[op1.reg];
+    }else{
+        t = mem + eff_addr(op1.mem);
+    }
+
+    count %= s1*8 + 1;
+    if (s1 == 1){
+        uint8_t * p = (uint8_t*)t;
+        uint8_t scaped = *p << (s1*8+1 - count);
+        scaped |= (test_Flag(CF) << count);
+        ((*p >> (count -1))&0x1)?set_Flag(CF):clear_Flag(CF);
+        *p = (*p >> count) | scaped;
+    }else if (s1 == 2){
+        uint16_t * p = (uint16_t*)t;
+        uint16_t scaped = *p << (s1*8+1 - count);
+        scaped |= (test_Flag(CF) << count);
+        ((*p >> (count -1))&0x1)?set_Flag(CF):clear_Flag(CF);
+        *p = (*p >> count) | scaped;
+    }else{
+        uint32_t * p = (uint32_t*)t;
+        uint32_t scaped = *p << (s1*8+1 - count );
+        scaped |= (test_Flag(CF) << count);
+        ((*p >> (count -1))&0x1)?set_Flag(CF):clear_Flag(CF);
+        *p = (*p >> count) | scaped;
+    }
+    return 0;
 } 
+
 int rol_i (cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+    uint8_t count;
+    if (op2.type == X86_OP_IMM){
+        count = op2.imm; 
+    }else{
+        /* X86_OP_REG is CL */
+        count = *((uint8_t *)regs[op2.reg]);
+    }
+
+    void * t;
+    if (op1.type == X86_OP_REG){
+        t = regs[op1.reg];
+    }else{
+        t = mem + eff_addr(op1.mem);
+    }
+
+    count %= s1*8;
+    if (s1 == 1){
+        uint8_t * p = (uint8_t*)t;
+        uint8_t scaped = *p >> (s1*8 - count);
+        *p = (*p << count) | scaped;
+        (scaped & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }else if (s1 == 2){
+        uint16_t * p = (uint16_t*)t;
+        uint16_t scaped = *p >> (s1*8 - count);
+        *p = (*p << count) | scaped;
+        (scaped & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }else{
+        uint32_t * p = (uint32_t*)t;
+        uint32_t scaped = *p >> (s1*8 - count);
+        *p = (*p << count) | scaped;
+        (scaped & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }
+    return 0;
+}
+
 int ror_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+    uint8_t count;
+    if (op2.type == X86_OP_IMM){
+        count = op2.imm; 
+    }else{
+        /* X86_OP_REG is CL */
+        count = *((uint8_t *)regs[op2.reg]);
+    }
+
+    void * t;
+    if (op1.type == X86_OP_REG){
+        t = regs[op1.reg];
+    }else{
+        t = mem + eff_addr(op1.mem);
+    }
+
+    count %= s1*8;
+    if (s1 == 1){
+        uint8_t * p = (uint8_t*)t;
+        uint8_t scaped = *p << (s1*8 - count);
+        *p = (*p >> count) | scaped;
+        ((scaped >> (s1*8 - count)) & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }else if (s1 == 2){
+        uint16_t * p = (uint16_t*)t;
+        uint16_t scaped = *p << (s1*8 - count);
+        *p = (*p >> count) | scaped;
+        ((scaped >> (s1*8 - count)) & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }else{
+        uint32_t * p = (uint32_t*)t;
+        uint32_t scaped = *p << (s1*8 - count);
+        *p = (*p >> count) | scaped;
+        ((scaped >> (s1*8 - count)) & 0x1)?set_Flag(CF):clear_Flag(CF);
+    }
+    return 0;
 } 
 int sahf_i (cs_insn *insn){
     eip += insn->size;
