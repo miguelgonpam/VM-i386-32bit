@@ -33,7 +33,8 @@ And we will have the cross compiler on the Output folder. We can either add the 
 ```
 ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
 ```
-Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`.
+Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`. \
+This process also brings cross binutils as `objdump` or `readelf`.
 
 
 ## Files
