@@ -4709,11 +4709,97 @@ int test_i (cs_insn *insn){
 int wait_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  XCHG. Exchange Register/Memory with Register.
+ *
+ *  Opcode 0x90 +r, 0x86 /r , 0x87 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int xchg_i (cs_insn *insn){
     eip += insn->size;
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[0];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    
+
+    if (s1 == 1){
+        uint8_t *p1, *p2;
+        if (op1.type == X86_OP_REG){
+            p1 = (uint8_t*)regs[op1.reg];
+        }else{
+            p1 = (uint8_t*)(mem + eff_addr(op1.mem));
+        }
+        if (op2.type == X86_OP_REG){
+            p2 = (uint8_t*)regs[op2.reg];
+        }else{
+            p2 = (uint8_t*)(mem + eff_addr(op2.mem));
+        }
+        uint8_t temp = *p2;
+        *p2 = *p1;
+        *p1 = temp;
+    }else if(s1 == 2){
+        uint16_t *p1, *p2;
+        if (op1.type == X86_OP_REG){
+            p1 = (uint16_t*)regs[op1.reg];
+        }else{
+            p1 = (uint16_t*)(mem + eff_addr(op1.mem));
+        }
+        if (op2.type == X86_OP_REG){
+            p2 = (uint16_t*)regs[op2.reg];
+        }else{
+            p2 = (uint16_t*)(mem + eff_addr(op2.mem));
+        }
+        uint16_t temp = *p2;
+        *p2 = *p1;
+        *p1 = temp;
+    }else{
+        uint32_t *p1, *p2;
+        if (op1.type == X86_OP_REG){
+            p1 = (uint32_t*)regs[op1.reg];
+        }else{
+            p1 = (uint32_t*)(mem + eff_addr(op1.mem));
+        }
+        if (op2.type == X86_OP_REG){
+            p2 = (uint32_t*)regs[op2.reg];
+        }else{
+            p2 = (uint32_t*)(mem + eff_addr(op2.mem));
+        }
+        uint32_t temp = *p2;
+        *p2 = *p1;
+        *p1 = temp;
+    }
+    return 0;
+
 } 
+
+/**
+ *  XLAT. Table Look-up Translation
+ *
+ *  Opcode 0xD7.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int xlat_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t * al = (uint8_t *)&eax;
+
+    *al = mem[ebx + *al];
+
+    return 0;
 }
 
 /**
