@@ -218,7 +218,7 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
 
     /* Args comprobation */
     if (argc != 2) {
-        fprintf(stderr, "Uso: %s <archivo_elf>\n", argv[0]);
+        fprintf(stdout, "Uso: %s <archivo_elf>\n", argv[0]);
         fprintf(log, "Wrong number of arguments. \n");
         return 1;
     }

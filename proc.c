@@ -223,7 +223,7 @@ int main(int argc, char *argv[], char *envp[]){
          /* Set top of stack at the top of stack window */
          scr_s=0;
 
-      }else if ('2' == ch){
+      }else if (KEY_DOWN == ch || '2' == ch){
          /* Focus is set on Code and scr_c doesnt overflow */
          if (focus == 0 && scr_c < count - (rows - H_REGS - 2)){
             /* Scroll down */
@@ -234,7 +234,7 @@ int main(int argc, char *argv[], char *envp[]){
             /* Scroll down */
             scr_s++;
          }
-      }else if ('8' == ch){
+      }else if (KEY_UP == ch || '8' == ch){
          /* Focus is set on Code and scr_c doesnt underflow */
          if (focus == 0 && scr_c > 0){
             /* Scroll up */
@@ -245,10 +245,10 @@ int main(int argc, char *argv[], char *envp[]){
             /* Scroll up */
             scr_s--;
          }
-      }else if('4' == ch){
+      }else if(KEY_LEFT == ch || '4' == ch){
          /* Switch scroll focus to Code */
          focus = 0;
-      }else if('6' == ch){
+      }else if(KEY_RIGHT == ch || '6' == ch){
          /* Switch scroll focus to Stack */
          focus = 1;
       }else if('b' == ch){
@@ -392,7 +392,7 @@ int main(int argc, char *argv[], char *envp[]){
    disable_raw_mode();
 
    /* Clear screen and move pointer to (0,0)*/
-   //printf("\033[2J\033[H\033[3J"); 
+   printf("\033[2J\033[H\033[3J"); 
    return 0;
 
 }
