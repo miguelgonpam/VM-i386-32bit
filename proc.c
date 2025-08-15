@@ -249,19 +249,18 @@ int main(int argc, char *argv[], char *envp[]){
          uint32_t dir;
 
          /* While string received not matches the format 0x00000000 */
-         /*
          while(!res){
-            cmd_get_str(str, "Breakpoint on direction : (0x00000000 format)",MAX_STR,c);
+            get_str("Breakpoint on direction : (0x00000000 format)", str, MAX_STR-1);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
-         */
+         
          /* Store breakpoint */
-         //brkpts[brk_ctr]=dir;
+         brkpts[brk_ctr]=dir;
          /* Increment breakpoint counter */
-         //brk_ctr++;
+         brk_ctr++;
          /* If counter overflows MAX, override the existing ones*/
-         //brk_ctr %= MAX_BRK;
+         brk_ctr %= MAX_BRK;
          
          //printf("0x%08x %10u", dir, dir);
 
@@ -276,13 +275,12 @@ int main(int argc, char *argv[], char *envp[]){
          focus?snprintf(txt, MAX_STR, "Stack address to lookup : (0x00000000 format)"):snprintf(txt, MAX_STR,"Code address to lookup : (0x00000000 format)");
 
          /* While string received not matches the format 0x00000000 */
-         /*
          while(!res){
-            cmd_get_str(str, txt, MAX_STR, c);
+            get_str(txt, str, MAX_STR-1);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
-         */
+         
          if (focus){
             int i = 0;
             /* Find user's address and set it at the top of Stack window*/
@@ -309,16 +307,15 @@ int main(int argc, char *argv[], char *envp[]){
          uint32_t dir;
 
          /* While string received not matches the format 0x00000000 */
-         /*
          while(!res){
-            cmd_get_str(str, "Address to dump content : (0x00000000 format)",MAX_STR,c);
+            get_str("Address to dump content : (0x00000000 format)", str, MAX_STR-1);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
-         */
          char txt[25];
          snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
-         //draw_cmd(txt);
+         print(txt);
+
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;

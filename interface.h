@@ -11,6 +11,8 @@
 
 int init_interface();
 void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind);
+void get_str(char * str, char * ret, size_t size);
+void print(char * txt);
 void exit_interface();
 
 #endif

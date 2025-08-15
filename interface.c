@@ -58,6 +58,7 @@ int init_interface(){
 void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
     /* Clear screen and move pointer to (0,0)*/
     printf("\033[2J\033[H\033[3J"); 
+    
 
     /* Test Flags to show on Registers Window */
     uint8_t c = test_Flag(CF),p = test_Flag(PF),z = test_Flag(ZF),s = test_Flag(SF),o = test_Flag(OF),a = test_Flag(AF), i = test_Flag(IF);
@@ -132,6 +133,32 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
     /* Code and Stack Box Bottom Line*/
     printf("└%*s┘└%*s┘\n", (cols/3)*2-2, code, cols/3-2, stack);
+}
+
+
+
+void move(int r){
+    printf("\033[%d;1H", r);
+}
+
+void clean(){
+    printf("\033[K\n");
+}
+
+void print(char * txt){
+    //move(rows-1);
+    printf(txt);
+
+}
+
+void get_str(char * str, char * ret, size_t size){
+    /* Move pointer to first of the stdin 3 lines */
+    move(rows-2);
+    clean();
+    clean();
+    /* Print getter string on the line before the last (last row-1, character 1) */
+    printf("\033[%d;%dH %s\n ", rows -1, 1, str);
+    fgets(ret, size, stdin);
 }
 
 void exit_interface(){
