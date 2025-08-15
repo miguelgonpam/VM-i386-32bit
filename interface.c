@@ -1,6 +1,8 @@
-#include <ncurses.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include "interface.h"
 #include "flags.h"
 #include "instr.h"
@@ -10,258 +12,132 @@ extern uint8_t * mem;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
 uint32_t old_eax, old_edx, old_esp, old_esi, old_ecx, old_ebx, old_ebp, old_edi, old_eflags;
 
-int rows, cols;
-WINDOW * win_stack, * win_regs, * win_code, * win_cmd;
+int rows, cols, spaces, w_code, w_stack;
+char *lines, *code, *stack;
 
-void init_interface(){
-    initscr();              // Inicia ncurses
-    echo();               // No mostrar entrada
-    cbreak();               // Modo sin buffering
-    keypad(stdscr, TRUE);   // Habilita teclas especiales
+void get_lines(size_t size, char * str){
+    const char *hline = "─";
 
-    if (has_colors()){
-        start_color();
-        use_default_colors();
-
-        init_pair(2, COLOR_BLUE, -1);
-        init_pair(3, COLOR_GREEN, -1);
+    for (int i=0; i<size; i++){
+        strcat(str, hline);
     }
-    
-    
+}
 
+int init_interface(){
+    struct winsize w;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+        perror("ioctl");
+        return 1;
+    }
+    rows = w.ws_row;
+    cols = w.ws_col;
+    spaces = ((cols - 4)-(27*3))/2;
+    if(spaces)spaces--;
+    if (spaces > 15)spaces=10;
+    lines = calloc(3, cols-1);
+    code = calloc(3,(cols/3)*2-1);
+    stack = calloc(3, (cols/3));
+    get_lines(cols-2, lines);
+    w_code = (cols/3)*2;
+    w_stack = cols - w_code;
+    get_lines(w_code-2, code);
+    get_lines(w_stack-2, stack);
     old_eax = eax;
+    old_ebx = ebx;
+    old_ecx = ecx;
     old_edx = edx;
+    old_ebp = ebp;
     old_esp = esp;
     old_esi = esi;
-    old_ecx = ecx;
-    old_ebx = ebx;
-    old_ebp = ebp;
     old_edi = edi;
     old_eflags = eflags;
-    
-    getmaxyx(stdscr, rows, cols);
 
-    // Crear ventanas
-    win_regs = newwin(H_REGS, cols, 0, 0);
-    win_stack = newwin(rows - H_REGS, W_STACK, H_REGS, cols - W_STACK);
-    win_code = newwin(rows - H_REGS-5, cols - W_STACK, H_REGS, 0);
-    win_cmd = newwin(H_CMD, cols-W_STACK, rows-H_CMD, 0);
-    scrollok(win_cmd, TRUE); 
-    scrollok(win_code, TRUE);
-    scrollok(win_stack, TRUE);
-    refresh();
 }
 
-void cmd_get_str(char * str, char * txt,size_t size, uint8_t c){
-    werase(win_cmd);
-    
-    if (c){
-        mvwprintw(win_cmd, 1, 1, "Wrong format, %s", txt);
-    }else{
-        mvwprintw(win_cmd, 1, 1, "%s", txt);
-    }
-    
-    mvwprintw(win_cmd, 2, 1, ">>> ");
-    wclrtoeol(win_cmd); // limpia la línea
-    wrefresh(win_cmd);
+void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
+    /* Clear screen and move pointer to (0,0)*/
+    printf("\033[2J\033[H\033[3J"); 
 
-    wgetnstr(win_cmd, str, size); // espera input del usuario
-
-    box(win_cmd, 0, 0);
-    wrefresh(win_cmd);
-}
-
-void draw_cmd(char * str){
-    werase(win_cmd);
-    mvwprintw(win_cmd, 2, 2, str);
-    box(win_cmd, 0, 0);
-    wrefresh(win_cmd);
-}
-
-void draw_regs(){
-    werase(win_regs);
-    char * buffer = malloc(sizeof(char) * REGS_BUFF_S);
+    /* Test Flags to show on Registers Window */
     uint8_t c = test_Flag(CF),p = test_Flag(PF),z = test_Flag(ZF),s = test_Flag(SF),o = test_Flag(OF),a = test_Flag(AF), i = test_Flag(IF);
-
-    uint8_t space = (cols-27*3-4)/2;
-    space = space > 20?20:space;
-
-    box(win_regs, 0, 0);
-    mvwprintw(win_regs, 0, 3, " Registers: ");
     
+    /* Registers */
+    printf("┌%*s┐\n", cols-2, lines);
+    printf("│ %sEAX : 0x%08x %010u%s %*s%sECX : 0x%08x %010u%s %*s%sESI : 0x%08x %010u%s\n", eax!=old_eax?"\033[7m":"",eax, eax,"\033[0m" ,spaces, " ", ecx!=old_ecx?"\033[7m":"",ecx, ecx,"\033[0m" ,spaces, " ", esi!=old_esi?"\033[7m":"",esi, esi,"\033[0m");
+    printf("\033[%d;%dH│\n", 2, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("│ %sEDX : 0x%08x %010u%s %*s%sEBX : 0x%08x %010u%s %*s%sEDI : 0x%08x %010u%s\n", edx!=old_edx?"\033[7m":"",edx, edx, "\033[0m",spaces, " ", ebx!=old_ebx?"\033[7m":"",ebx, ebx,"\033[0m" ,spaces, " ", edi!=old_edi?"\033[7m":"",edi, edi, "\033[0m");
+    printf("\033[%d;%dH│\n", 3, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("│ %sESP : 0x%08x %010u%s %*sEIP : 0x%08x %010u %*s%sEBP : 0x%08x %010u%s\n", esp!=old_esp?"\033[7m":"",esp, esp, "\033[0m",spaces, " ", eip, eip,spaces, " ", ebp!=old_ebp?"\033[7m":"",ebp, ebp, "\033[0m");
+    printf("\033[%d;%dH│\n", 4, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("│ DS  : 0x%08x %010u %*sES  : 0x%08x %010u %*sEFLAGS : 0x%08x\n", ds, ds, spaces, " ", es, es,spaces, " ", eflags);
+    printf("\033[%d;%dH│\n", 5, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("│ SS  : 0x%08x %010u %*sFS  : 0x%08x %010u %*s%s[ %2s %2s %2s %2s %2s %2s %2s]%s\n", ss, ss, spaces, " ", fs, fs,spaces, " ", eflags!=old_eflags?"\033[7m":"" ,c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"", "\033[0m");
+    printf("\033[%d;%dH│\n", 6, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("│ CS  : 0x%08x %010u %*sGS  : 0x%08x %010u\n", cs, cs, spaces, " ", gs, gs);
+    printf("\033[%d;%dH│\n", 7, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
+    printf("└%*s┘\n", cols-2, lines);
 
-    if(old_eax != eax){
-        wattron(win_regs, A_REVERSE);
-        old_eax = eax;
-    }else{
-        wattroff(win_regs, A_REVERSE);
+    /* Update old values */
+    old_eax = eax;
+    old_ebx = ebx;
+    old_ecx = ecx;
+    old_edx = edx;
+    old_ebp = ebp;
+    old_esp = esp;
+    old_esi = esi;
+    old_edi = edi;
+    old_eflags = eflags;
+
+    /* Code and Stack Box Top Line*/
+    printf("┌%*s┐┌%*s┐\n", (cols/3)*2-2, code, cols/3-2, stack);
+
+    /* Code */
+    for (int i=0; i<rows-H_REGS-5; i++){ /* 5 lines left, 2 for the code box and 3 for stdin */
+        if (i<count){
+            /* Print code addr in blue */
+            printf("│ <%s%s%s> :", "\033[34m", lineas[i*2], "\033[0m"); 
+            if(eip_ind >= 0 && eip_ind == i){
+                /* Highlight current instruction (EIP) */
+                printf("%s%s%s", "\033[7m",lineas[i*2+1],"\033[0m");
+            }else{
+                /* Print normal instruction */
+                printf("%s", lineas[i*2+1]);
+            }
+            /* Close box line */
+            printf("\033[%d;%dH│\n", H_REGS+i+2, w_code); /* +2 because 1 is to skip the box line and other 1 is in case i=0 (so it would write in the box again)*/
+        }
     }
-    mvwprintw(win_regs, 1, 2, "EAX : 0x%08x %010u",eax,eax);
 
-    if(old_ecx != ecx){
-        wattron(win_regs, A_REVERSE);
-        old_ecx = ecx;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 1, 2+27*1+space, "ECX : 0x%08x %010u",ecx,ecx);
-
-    if(old_esi != esi){
-        wattron(win_regs, A_REVERSE);
-        old_esi = esi;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 1, 2+27*2+space*2, "ESI : 0x%08x %010u",esi,esi);
-    
-
-    if(old_edx != edx){
-        wattron(win_regs, A_REVERSE);
-        old_edx = edx;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 2, 2, "EDX : 0x%08x %010u",edx,edx);
-
-    if(old_ebx != ebx){
-        wattron(win_regs, A_REVERSE);
-        old_ebx = ebx;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 2, 2+27*1+space, "EBX : 0x%08x %010u",ebx,ebx);
-
-    if(old_edi != edi){
-        wattron(win_regs, A_REVERSE);
-        old_edi = edi;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 2, 2+27*2+space*2, "EDI : 0x%08x %010u",edi,edi);
-
-    if(old_esp != esp){
-        wattron(win_regs, A_REVERSE);
-        old_esp = esp;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 3, 2, "ESP : 0x%08x %010u",esp,esp);
-
-    wattroff(win_regs, A_REVERSE); /* EIP changes every instruction so no highlight */
-    mvwprintw(win_regs, 3, 2+27*1+space, "EIP : 0x%08x %010u",eip,eip);
-
-    if(old_ebp != ebp){
-        wattron(win_regs, A_REVERSE);
-        old_ebp = ebp;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 3, 2+27*2+space*2, "EBP : 0x%08x %010u",ebp,ebp);
-
-    wattroff(win_regs, A_REVERSE); /* Dont highlight segments */
-    mvwprintw(win_regs, 4, 2, "DS  : 0x%08x %010u%*sFS  : 0x%08x %010u%*sEFLAGS : 0x%08x\n", ds,ds, space,"",fs,fs,space,"", eflags);
-    mvwprintw(win_regs, 5, 2, "SS  : 0x%08x %010u%*sES  : 0x%08x %010u", ss,ss, space,"", es,es);
-
-    if(old_eflags != eflags){
-        wattron(win_regs, A_REVERSE);
-        old_eflags = eflags;
-    }else{
-        wattroff(win_regs, A_REVERSE);
-    }
-    mvwprintw(win_regs, 5, 2+27*2+space*2, "[ %2s %2s %2s %2s %2s %2s %2s]\n", c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"");    
-
-    wattroff(win_regs, A_REVERSE);
-    mvwprintw(win_regs, 6, 2, "CS  : 0x%08x %010u%*sGS  : 0x%08x %010u\n", cs,cs, space,"",gs,gs);
-
-
-    /*
-    snprintf(buffer, REGS_BUFF_S, "EAX : 0x%08x %010u\t\tECX : 0x%08x %010u\t\tEDX : 0x%08x %010u\n EBX : 0x%08x %010u\t\tESI : 0x%08x %010u\t\tEDI : 0x%08x %010u\n ESP : 0x%08x %010u\t\tEBP : 0x%08x %010u\t\tEIP : 0x%08x %010u\n DS  : 0x%08x %010u\t\tFS  : 0x%08x %010u\t\tEFLAGS : 0x%08x\n SS  : 0x%08x %010u\t\tES  : 0x%08x %010u\t\t[ %2s %2s %2s %2s %2s %2s %2s]\n CS  : 0x%08x %010u\t\tGS  : 0x%08x %010u\nEFLAGS : 0x%08x\t", 
-        eax,eax,ecx,ecx,edx,edx,ebx,ebx,esi,esi,edi,edi,esp,esp,ebp,ebp,eip,eip,ds,ds,fs,fs,eflags,ss,ss,es,es,c?"CF":"",p?"PF":"",z?"ZF":"",s?"SF":"",o?"OF":"",a?"AF":"",i?"IF":"",cs,cs,gs,gs);
-    mvwprintw(win_regs, 1, 1, buffer);
-    */
-    
-    wrefresh(win_regs);
-    free(buffer);
-}
-
-void draw_stack(int scr_s){
-    werase(win_stack);
-    /* Draw window box */
-    box(win_stack, 0, 0);
-    /* Draw window title */
-    mvwprintw(win_stack, 0, 3, " Stack : ");
-    
-    /* First position to draw from the ESP (starting i doublewords from ESP)*/
-    int i=scr_s;
-    /* Counter of lines drawn */
-    int k = 0;
-    /* Rows available to draw on the window*/
-    int lim = rows - H_REGS - 3 ;
+    /* Stack */
+    /* First position to draw from the stack (Starting i doublewords from ESP) */
+    int ii = scr_s;
+    /* Lines drawn counter */
+    int k=0;
+    /* Rows available to draw */
+    int lim = rows - H_REGS - 2 - 3; /* 2 is the width of top and bottom box lines and 3 is number of lines reserved to stdin */ 
     /* Substraction with unsigned ints so we must cast to int */
     /* Limit of rows available to draw so it doesnt overflow STACK_BOTTOM*/
-    int j = ((int)(STACK_BOTTOM - esp))/4;    
+    int j = ((int)(STACK_BOTTOM - esp))/4;
     do{
-        if (j > 0 && esp + 4*i < STACK_BOTTOM){
-            /* Green color on */
-            wattron(win_stack, COLOR_PAIR(3));
-            /* Draw on row k+1 on column 2, the address */
-            mvwprintw(win_stack, 1 + k, 2, "0x%08x", esp + 4*i);    
-            /* Green color off*/
-            wattroff(win_stack, COLOR_PAIR(3));
-            /* Draw on row k+1 on column 13, the address value */
-            mvwprintw(win_stack, 1 + k, 12, " : 0x%08x",  *((uint32_t *)(mem+(esp+4*i))));    
+        if (j > 0 && esp + 4*ii < STACK_BOTTOM){
+            printf("\033[%d;%dH│ %s0x%08x%s : 0x%08x \033[%d;%dH│\n", H_REGS+k+2, w_code+1, "\033[32m", esp+4*ii, "\033[0m", *((uint32_t *)(mem+(esp+4*ii))), H_REGS+k+2, cols);   
         }
-        /*
-            if (esp + 4*i < STACK_BOTTOM){
-            i++;
-            }
-        */
-        if (esp + 4*i >= STACK_BOTTOM){
+        if (esp + 4*ii >= STACK_BOTTOM){
             break;
         }
-        i++;
+        ii++;
         k++;
-    }while(k <= lim && i < j);
+    }while(k < lim && ii < j);
 
-    wrefresh(win_stack);
-}
-
-void draw_code(char ** lineas, int count, int eip_ind){
-    werase(win_code);
-    box(win_code, 0, 0);
-    mvwprintw(win_code, 0, 3, " Code : ");
-    for (int i = 0; i < (rows - H_REGS - H_CMD-2); i++) {
-        if (i < count) {
-            if ( eip_ind >= 0 && i == eip_ind){
-                /* Print address with blue */
-                wattron(win_code, COLOR_PAIR(2));
-                mvwprintw(win_code, i + 1, 1, "%s", lineas[i*2]);
-                wattroff(win_code, COLOR_PAIR(2));
-
-                /* Print Instruction*/
-                wattron(win_code, A_REVERSE);
-                mvwprintw(win_code, i + 1, ADDR_TXT_S+1, "%s", lineas[i*2+1]);
-                wattroff(win_code, A_REVERSE);
-            }else{
-                /* Print address with blue */
-                wattron(win_code, COLOR_PAIR(2));
-                mvwprintw(win_code, i + 1, 1, "%s", lineas[i*2]);
-                wattroff(win_code, COLOR_PAIR(2));
-
-                mvwprintw(win_code, i + 1, ADDR_TXT_S+1, "%s", lineas[i*2+1]);
-            }
-            
-        }
-    }
-    wrefresh(win_code);
+    /* Code and Stack Box Bottom Line*/
+    printf("└%*s┘└%*s┘\n", (cols/3)*2-2, code, cols/3-2, stack);
 }
 
 void exit_interface(){
-    delwin(win_regs);
-    delwin(win_stack);
-    delwin(win_code);
-    delwin(win_cmd);
-    endwin();
+    free(lines);
+    free(code);
+    free(stack);
 }
 
 

@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <capstone/capstone.h>
-#include <ncurses.h>
 #include "instr.h"
 #include "flags.h"
 #include "loader.h"
@@ -66,8 +65,8 @@ uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
  *
  */
 int main(int argc, char *argv[], char *envp[]){
-   /* INITIALIZATION */
-   system("clear"); //execve?
+   /* Clear screen and move pointer to (0,0)*/
+    printf("\033[2J\033[H\033[3J"); 
 
    /* Initializes some registers and allocates memory for mem variable */
    if(!initialize())
@@ -128,7 +127,8 @@ int main(int argc, char *argv[], char *envp[]){
    /* Initialize scr_c to EIP instr*/
    for(int i=0; i<count;i++){
       if (insn[i].address == eip){
-         scr_c = i;
+         /* Sets eip on the second visible code line if it is not the first line */
+         scr_c = (i)?i-1:i;
          break;
       }
    }
@@ -148,23 +148,19 @@ int main(int argc, char *argv[], char *envp[]){
          if (addr == eip){
             eip_ind = i;
          }
-         snprintf(lineas[i*2], ADDR_TXT_S-1, "<0x%08x>:", addr);
+         snprintf(lineas[i*2], ADDR_TXT_S-1, "0x%08x", addr);
          snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
          //if (strcmp(insn[i].mnemonic, "push") == 0){
          //   push_i(&insn[i]);
          //}
          //eip += insn[i].size;
       }
-      /* Draw registers, code, stack and cmd box */
-      draw_regs();
-      draw_stack(scr_s);
-      draw_code(lineas, rows, eip_ind);
+      /* Draw registers, code and stack */
+      draw_screen(scr_s, scr_c, lineas, rows, eip_ind);
       
-
+      
       /* Gets user's option */
-      ch = getch();
-
-      draw_cmd("");
+      ch = getchar();
 
       /* If user's choice is ENTER key */
       if('\n' == ch){
@@ -177,7 +173,7 @@ int main(int argc, char *argv[], char *envp[]){
              The 1 indicates to only disassemble 1 instruction.
           */
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
-            return -1;
+            goto exit;
 
          /* Check interrupts ???*/
          dispatcher(ins[0].mnemonic, &ins[0]);
@@ -202,7 +198,7 @@ int main(int argc, char *argv[], char *envp[]){
                The 1 indicates to only disassemble 1 instruction.
             */
             if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
-               return -1;
+               goto exit;
 
             /* Check interrupts ???*/
             dispatcher(ins[0].mnemonic, &ins[0]);
@@ -219,7 +215,7 @@ int main(int argc, char *argv[], char *envp[]){
          /* Set top of stack at the top of stack window */
          scr_s=0;
 
-      }else if (KEY_DOWN == ch){
+      }else if ('2' == ch){
          /* Focus is set on Code and scr_c doesnt overflow */
          if (focus == 0 && scr_c < count - (rows - H_REGS - 2)){
             /* Scroll down */
@@ -230,7 +226,7 @@ int main(int argc, char *argv[], char *envp[]){
             /* Scroll down */
             scr_s++;
          }
-      }else if (KEY_UP == ch){
+      }else if ('8' == ch){
          /* Focus is set on Code and scr_c doesnt underflow */
          if (focus == 0 && scr_c > 0){
             /* Scroll up */
@@ -241,10 +237,10 @@ int main(int argc, char *argv[], char *envp[]){
             /* Scroll up */
             scr_s--;
          }
-      }else if(KEY_LEFT == ch){
+      }else if('4' == ch){
          /* Switch scroll focus to Code */
          focus = 0;
-      }else if(KEY_RIGHT == ch){
+      }else if('6' == ch){
          /* Switch scroll focus to Stack */
          focus = 1;
       }else if('b' == ch){
@@ -253,17 +249,19 @@ int main(int argc, char *argv[], char *envp[]){
          uint32_t dir;
 
          /* While string received not matches the format 0x00000000 */
+         /*
          while(!res){
             cmd_get_str(str, "Breakpoint on direction : (0x00000000 format)",MAX_STR,c);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
+         */
          /* Store breakpoint */
-         brkpts[brk_ctr]=dir;
+         //brkpts[brk_ctr]=dir;
          /* Increment breakpoint counter */
-         brk_ctr++;
+         //brk_ctr++;
          /* If counter overflows MAX, override the existing ones*/
-         brk_ctr %= MAX_BRK;
+         //brk_ctr %= MAX_BRK;
          
          //printf("0x%08x %10u", dir, dir);
 
@@ -278,12 +276,13 @@ int main(int argc, char *argv[], char *envp[]){
          focus?snprintf(txt, MAX_STR, "Stack address to lookup : (0x00000000 format)"):snprintf(txt, MAX_STR,"Code address to lookup : (0x00000000 format)");
 
          /* While string received not matches the format 0x00000000 */
+         /*
          while(!res){
             cmd_get_str(str, txt, MAX_STR, c);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
-
+         */
          if (focus){
             int i = 0;
             /* Find user's address and set it at the top of Stack window*/
@@ -310,21 +309,23 @@ int main(int argc, char *argv[], char *envp[]){
          uint32_t dir;
 
          /* While string received not matches the format 0x00000000 */
+         /*
          while(!res){
             cmd_get_str(str, "Address to dump content : (0x00000000 format)",MAX_STR,c);
             res = sscanf(str, "0x%08x", &dir);
             c = 1;
          }
+         */
          char txt[25];
          snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
-         draw_cmd(txt);
+         //draw_cmd(txt);
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;
       
    }
 
-
+   exit:
    /* Free memory */
    for (int i = 0; i<rows*2; i++){
       free(lineas[i]); 
@@ -338,6 +339,8 @@ int main(int argc, char *argv[], char *envp[]){
    /* Free all memory (4GB on the heap) */
    free(mem);
 
+   /* Clear screen and move pointer to (0,0)*/
+   printf("\033[2J\033[H\033[3J"); 
    return 0;
 
 }

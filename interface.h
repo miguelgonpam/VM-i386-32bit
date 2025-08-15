@@ -9,17 +9,8 @@
 #define REGS_BUFF_S 500
 #define ADDR_TXT_S 15
 
-void init_interface();
-void draw_regs();
-void draw_stack();
-void draw_code(char ** lineas, int count, int eip_ind);
-void cmd_get_str(char * str,char *txt, size_t size, uint8_t c);
-void draw_cmd();
+int init_interface();
+void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind);
 void exit_interface();
-
-
-
-
-
 
 #endif
