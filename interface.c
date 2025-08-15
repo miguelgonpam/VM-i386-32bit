@@ -1,3 +1,6 @@
+#include <termios.h>
+#include <unistd.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +10,7 @@
 #include "flags.h"
 #include "instr.h"
 
+
 extern uint32_t eflags;
 extern uint8_t * mem;
 extern uint32_t eax, edx, esp, esi, eip, cs, ds, fs, ecx, ebx, ebp, edi, ss, es, gs;
@@ -14,6 +18,19 @@ uint32_t old_eax, old_edx, old_esp, old_esi, old_ecx, old_ebx, old_ebp, old_edi,
 
 int rows, cols, spaces, w_code, w_stack;
 char *lines, *code, *stack;
+
+struct termios oldt, newt;
+
+void enable_raw_mode() {
+    tcgetattr(STDIN_FILENO, &oldt);       // Guarda la config actual
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+}
+
+void disable_raw_mode() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // Restaura config
+}
 
 void get_lines(size_t size, char * str){
     const char *hline = "─";
@@ -30,19 +47,30 @@ int init_interface(){
         perror("ioctl");
         return 1;
     }
+    /* Get terminal size */
     rows = w.ws_row;
     cols = w.ws_col;
+
+    /* Get spaces between registers */
     spaces = ((cols - 4)-(27*3))/2;
     if(spaces)spaces--;
     if (spaces > 15)spaces=10;
+
+    /* Alloc memory for drawing the boxes */
     lines = calloc(3, cols-1);
     code = calloc(3,(cols/3)*2-1);
     stack = calloc(3, (cols/3));
     get_lines(cols-2, lines);
+
+    /* Obtain code and stack boxes width */
     w_code = (cols/3)*2;
     w_stack = cols - w_code;
+
+    /* Fill code and stack strings with box lines */
     get_lines(w_code-2, code);
     get_lines(w_stack-2, stack);
+
+    /* Store old regs values to compare and hihlight if change */
     old_eax = eax;
     old_ebx = ebx;
     old_ecx = ecx;
@@ -55,14 +83,40 @@ int init_interface(){
 
 }
 
+int getch() {
+    char c;
+    move(rows);  // mover cursor antes
+    if (read(STDIN_FILENO, &c, 1) != 1) return -1;
+
+    if (c == '\x1B') { // ESC
+        char seq[2];
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1B';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1B';
+
+        if (seq[0] == '[') {
+            switch(seq[1]) {
+                case 'A': return KEY_UP;
+                case 'B': return KEY_DOWN;
+                case 'C': return KEY_RIGHT;
+                case 'D': return KEY_LEFT;
+            }
+        }
+        return '\x1B';
+    } else {
+        return c;
+    }
+}
+
 void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
-    /* Clear screen and move pointer to (0,0)*/
-    printf("\033[2J\033[H\033[3J"); 
-    
+    /* Clear screen */
+    cleanv(1, rows-3);
 
     /* Test Flags to show on Registers Window */
     uint8_t c = test_Flag(CF),p = test_Flag(PF),z = test_Flag(ZF),s = test_Flag(SF),o = test_Flag(OF),a = test_Flag(AF), i = test_Flag(IF);
-    
+
+    /* Set cursor */
+    move(1);
+
     /* Registers */
     printf("┌%*s┐\n", cols-2, lines);
     printf("│ %sEAX : 0x%08x %010u%s %*s%sECX : 0x%08x %010u%s %*s%sESI : 0x%08x %010u%s\n", eax!=old_eax?"\033[7m":"",eax, eax,"\033[0m" ,spaces, " ", ecx!=old_ecx?"\033[7m":"",ecx, ecx,"\033[0m" ,spaces, " ", esi!=old_esi?"\033[7m":"",esi, esi,"\033[0m");
@@ -96,8 +150,8 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
     /* Code */
     for (int i=0; i<rows-H_REGS-5; i++){ /* 5 lines left, 2 for the code box and 3 for stdin */
         if (i<count){
-            /* Print code addr in blue */
-            printf("│ <%s%s%s> :", "\033[34m", lineas[i*2], "\033[0m"); 
+            /* Clear line and Print code addr in blue */
+            printf("\033[K│ <%s%s%s> : ", "\033[34m", lineas[i*2], "\033[0m"); 
             if(eip_ind >= 0 && eip_ind == i){
                 /* Highlight current instruction (EIP) */
                 printf("%s%s%s", "\033[7m",lineas[i*2+1],"\033[0m");
@@ -130,9 +184,13 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
         ii++;
         k++;
     }while(k < lim && ii < j);
+    while (k < lim){
+        printf("\033[%d;%dH\033[K│%*s│\n", H_REGS+k+2, w_code+1, w_stack-2, "");
+        k++;
+    }
 
     /* Code and Stack Box Bottom Line*/
-    printf("└%*s┘└%*s┘\n", (cols/3)*2-2, code, cols/3-2, stack);
+    printf("└%*s┘└%*s┘\n", w_code-2, code, w_stack-2, stack);
 }
 
 
@@ -145,20 +203,29 @@ void clean(){
     printf("\033[K\n");
 }
 
+void cleanv(int i, int f){
+    for(int j=i; j<=f; j++){
+        printf("\033[%d;1H\033[K", j);
+    }
+}
+
 void print(char * txt){
-    //move(rows-1);
+    move(rows-1);
     printf(txt);
 
 }
 
-void get_str(char * str, char * ret, size_t size){
+void get_str(char * str, char * ret, size_t size, int c){
     /* Move pointer to first of the stdin 3 lines */
-    move(rows-2);
-    clean();
-    clean();
+    cleanv(rows-2, rows);
+    //move(rows-2);
+    
     /* Print getter string on the line before the last (last row-1, character 1) */
-    printf("\033[%d;%dH %s\n ", rows -1, 1, str);
+    printf("\033[%d;%dH %s%s\n ", rows-2, 1, c?"Wrong format, ":"",str);
+
+    disable_raw_mode();
     fgets(ret, size, stdin);
+    enable_raw_mode();
 }
 
 void exit_interface(){

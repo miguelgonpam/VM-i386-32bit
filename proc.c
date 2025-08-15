@@ -106,6 +106,9 @@ int main(int argc, char *argv[], char *envp[]){
    /* Initializes ncurses interaface */
    init_interface();
 
+   /* getchar() does not need ENTER anymore */
+   enable_raw_mode();
+
    /* Allocates memory for pointer array. Its used to store the code lines to print. i.e "<0x08049752>:pop esi" */
    char **lineas = malloc(2*rows * sizeof(char *));
    if (lineas == NULL){
@@ -121,7 +124,7 @@ int main(int argc, char *argv[], char *envp[]){
 
    }
 
-   /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or*/
+   /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or stack */
    int ch = 0, old_ch = 0, scr_c = 0, scr_s = 0, focus = 0;
 
    /* Initialize scr_c to EIP instr*/
@@ -150,17 +153,22 @@ int main(int argc, char *argv[], char *envp[]){
          }
          snprintf(lineas[i*2], ADDR_TXT_S-1, "0x%08x", addr);
          snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
-         //if (strcmp(insn[i].mnemonic, "push") == 0){
-         //   push_i(&insn[i]);
-         //}
-         //eip += insn[i].size;
       }
       /* Draw registers, code and stack */
       draw_screen(scr_s, scr_c, lineas, rows, eip_ind);
       
       
-      /* Gets user's option */
-      ch = getchar();
+
+      /* Move pointer to last line and Gets user's option */
+      move(rows);
+      //ch = getchar();
+      ch = getch();
+      
+      
+      cleanv(rows-2, rows);
+
+      /* Set stdin cursor at first line of stdin */
+      move(rows);
 
       /* If user's choice is ENTER key */
       if('\n' == ch){
@@ -221,8 +229,8 @@ int main(int argc, char *argv[], char *envp[]){
             /* Scroll down */
             scr_c++;
          }
-         /* Focus is set on Stack, overflow checked in draw_regs() */
-         if (focus == 1 ){
+         /* Focus is set on Stack, overflow checked */
+         if (focus == 1 && scr_s+1 < (STACK_BOTTOM - (int)esp)/4 ){
             /* Scroll down */
             scr_s++;
          }
@@ -250,21 +258,33 @@ int main(int argc, char *argv[], char *envp[]){
 
          /* While string received not matches the format 0x00000000 */
          while(!res){
-            get_str("Breakpoint on direction : (0x00000000 format)", str, MAX_STR-1);
+            /* Print asking string and get user's response */
+            get_str("Breakpoint on direction : (0x00000000 format)", str, MAX_STR-1, c);
+            /* Format check */
             res = sscanf(str, "0x%08x", &dir);
+            /* Flag for adding "Wrong format" */
             c = 1;
          }
          
          /* Store breakpoint */
          brkpts[brk_ctr]=dir;
+         
+         /* Clean stdin zone */
+         cleanv(rows-2, rows);
+         move(rows-2);
+
+         /* Prints breakpont indexes from 1 to MAX_BRK*/
+         printf(" Created breakpoint %u at 0x%08x", brk_ctr+1, dir);
+
          /* Increment breakpoint counter */
          brk_ctr++;
          /* If counter overflows MAX, override the existing ones*/
          brk_ctr %= MAX_BRK;
-         
-         //printf("0x%08x %10u", dir, dir);
 
       }else if('f' == ch){
+         /* Clean stdin zone */
+         //cleanv(rows-2, rows);
+
          /* Sets one instruction or stack addr (depending on focus variable) at the top of its window (either code or stack) */
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -276,8 +296,11 @@ int main(int argc, char *argv[], char *envp[]){
 
          /* While string received not matches the format 0x00000000 */
          while(!res){
-            get_str(txt, str, MAX_STR-1);
+            /* Print asking string and get user's response */
+            get_str(txt, str, MAX_STR-1, c);
+            /* Format check */
             res = sscanf(str, "0x%08x", &dir);
+            /* Flag for showing "Wrong format" */
             c = 1;
          }
          
@@ -299,7 +322,7 @@ int main(int argc, char *argv[], char *envp[]){
                }
             }
          }
-
+         cleanv(rows-2,rows);
          
       }else if('x' == ch){
          char str[MAX_STR];
@@ -308,14 +331,43 @@ int main(int argc, char *argv[], char *envp[]){
 
          /* While string received not matches the format 0x00000000 */
          while(!res){
-            get_str("Address to dump content : (0x00000000 format)", str, MAX_STR-1);
+            /* Print asking string and get user's response */
+            get_str("Address to dump content : (0x00000000 format)", str, MAX_STR-1, c);
+            /* Format check */
             res = sscanf(str, "0x%08x", &dir);
+            /* Flag for showing "Wrong format" */
             c = 1;
          }
          char txt[25];
          snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
-         print(txt);
+         cleanv(rows-2, rows);
+         move(rows-2);
+         printf("%s",txt);
+      }else if('d' == ch){
+         char str[MAX_STR];
+         int res = 0, c = 0;
+         uint32_t dir;
 
+         /* While string received not matches the format 0x00000000 */
+         while(!res){
+            /* Print asking string and get user's response */
+            get_str("Breakpoint number to remove : (0 format)", str, MAX_STR-1, c);
+            /* Format check */
+            res = sscanf(str, "%d", &dir);
+            /* Flag for showing "Wrong format" */
+            c = 1;
+         }
+
+         /* Transform breakpoint number to breakpoint index */
+         dir--;
+         /* Check overflow to avoid segmentation fault */
+         dir %= MAX_BRK;
+         /* Delete breakpoint */
+         brkpts[dir]=0x00000000;
+
+         /* Clear stdin and move pointer */
+         cleanv(rows-2, rows);
+         move(rows-2);
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;
@@ -335,6 +387,9 @@ int main(int argc, char *argv[], char *envp[]){
 
    /* Free all memory (4GB on the heap) */
    free(mem);
+
+   /* Set terminal to default */
+   disable_raw_mode();
 
    /* Clear screen and move pointer to (0,0)*/
    printf("\033[2J\033[H\033[3J"); 
