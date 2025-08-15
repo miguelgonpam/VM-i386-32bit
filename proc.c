@@ -392,7 +392,7 @@ int main(int argc, char *argv[], char *envp[]){
    disable_raw_mode();
 
    /* Clear screen and move pointer to (0,0)*/
-   printf("\033[2J\033[H\033[3J"); 
+   //printf("\033[2J\033[H\033[3J"); 
    return 0;
 
 }

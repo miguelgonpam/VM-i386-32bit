@@ -211,7 +211,7 @@ void cleanv(int i, int f){
 
 void print(char * txt){
     move(rows-1);
-    printf(txt);
+    printf("%s", txt);
 
 }
 
