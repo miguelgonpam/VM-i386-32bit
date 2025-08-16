@@ -4,6 +4,7 @@
 #include <capstone/capstone.h>
 #include "instr.h"
 #include "flags.h"
+#include "interrupts.h"
 
 
 /******************************************************/
@@ -21,7 +22,7 @@ uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x0
 
 const char *inss[] = {
     "aaa","aad","aam","aas","adc","add","and","bt","bts","call","cbw","clc",
-    "cld","cli","cmc","cmp","cmps","cwd","cwde", "cpuid","daa","das","dec","div",
+    "cld","cli","cmc","cmp","cmpsb","cmpsw", "cmpsd","cwd", "cdq","cwde", "cpuid","daa","das","dec","div",
     "hlt","idiv","imul","in","inc","int","into","iret","ja","jae","jb","jbe",
     "jc","jcxz","jecxz_i","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
     "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
@@ -38,7 +39,7 @@ const char *inss[] = {
     };
 
 Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
-    bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmps_i, cwd_i, 
+    bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmpsb_i, cmpsw_i, cmpsd_i, cwd_i, cdq_i, 
     cwde_i, cpuid_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
     into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, jecxz_i, je_i, jg_i, jge_i, jl_i, 
     jle_i, jmp_i, jna_i, jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, 
@@ -81,6 +82,7 @@ int initialize(){
     fs = 0x00;
     gs = 0x00;
 
+    /* Allocate 4GB of memory */
     mem = (uint8_t *)calloc(sizeof(uint8_t), UINT32_MAX ); //4GB de memoria del i386 (32 bits) inicializada a 00 cada byte
     if (!mem)
         return 0;
@@ -91,6 +93,9 @@ int initialize(){
     GDT_Descriptor * gdt = (GDT_Descriptor *)(mem + GDT_ADDR);
     init_gdt(gdt);
     gdtr = GDT_ADDR;
+
+    /* Initialize IDT (interrupts.h) */
+    init_idt();
 }
 
 
@@ -100,7 +105,14 @@ int initialize(){
 /******************************************************/
 
 
-
+/**
+ * Finds the corresponding instruction using the cs_insn struct and calls for its execute.
+ * 
+ * @param mnemonic instructions string.
+ * @param insn struct cointaining instructions info.
+ * 
+ * @return instructions execution return value.
+ */
 int dispatcher(char * mnemonic, cs_insn * insn){
     const size_t count = sizeof(instructions)/sizeof(*instructions);
     for (int i = 0; i< count ; i++){
@@ -1794,13 +1806,171 @@ int xor_i(cs_insn *insn){
     return 0;
 }
 
-int cmps_i (cs_insn *insn){
+/**
+ *  CMPSB. Compare String Operands (Byte).
+ *
+ *  Opcodes 0xA6, 0xA7. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cmpsb_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* Address size of 32b */
+    uint8_t op1 = mem[esi], op2 = mem[edi];
+    uint8_t res = op1 - op2;
+
+    /* Set flags as described on Appendix C */
+    (op1 < op2)?set_Flag(CF):clear_Flag(CF);
+    overflow(op1, op2, res, 0x08)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x08)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(op1, op2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    /* Adjust increment */
+    if(test_Flag(DF)){
+        edi -= 1;
+        esi -= 1;
+    }else{
+        edi += 1;
+        esi += 1;
+    }
+
+    return 0;
+}
+
+/**
+ *  CMPSW. Compare String Operands (Word).
+ *
+ *  Opcodes 0xA6, 0xA7. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cmpsw_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* Address size of 32b */
+    uint16_t op1 = *((uint16_t *)(mem+esi)), op2 = *((uint16_t *)(mem+edi));
+    uint16_t res = op1 - op2;
+
+    /* Set flags as described on Appendix C */
+    (op1 < op2)?set_Flag(CF):clear_Flag(CF);
+    overflow(op1, op2, res, 0x10)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x10)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(op1, op2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    /* Adjust increment */
+    if(test_Flag(DF)){
+        edi -= 2;
+        esi -= 2;
+    }else{
+        edi += 2;
+        esi += 2;
+    }
+
+    return 0;
+
+}
+
+/**
+ *  CMPD. Compare String Operands (Doubleword).
+ *
+ *  Opcodes 0xA6, 0xA7. 
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cmpsd_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* Address size of 32b */
+    uint32_t op1 = *((uint32_t *)(mem+esi)), op2 = *((uint32_t *)(mem+edi));
+    uint32_t res = op1 - op2;
+
+    /* Set flags as described on Appendix C */
+    (op1 < op2)?set_Flag(CF):clear_Flag(CF);
+    overflow(op1, op2, res, 0x20)?set_Flag(OF):clear_Flag(OF);
+    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(op1, op2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    /* Adjust increment */
+    if(test_Flag(DF)){
+        edi -= 4;
+        esi -= 4;
+    }else{
+        edi += 4;
+        esi += 4;
+    }
+
+    return 0;
+
+}
+
+int cmpxchg(cs_insn *insn){
     eip += insn->size;
 }
 
+/**
+ *  CWD. Convert Word to Doubleword.
+ *
+ *  Opcode 0x99. 
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int cwd_i (cs_insn *insn){
     eip += insn->size;
+    uint16_t * dx = (uint16_t *)&edx;
+    if(sign(*((uint16_t*)&eax), 0x10)){
+        /* AX < 0 */
+        *dx = 0xFFFF;
+    }else{
+        *dx = 0x0000;
+    }
+    return 0;
 } 
+
+/**
+ *  CWD. Convert Doubleword to Quadword.
+ *
+ *  Opcode 0x99. 
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int cdq_i (cs_insn *insn){
+    eip += insn->size;
+    if(sign(eax, 0x20)){
+        /* EAX < 0 */
+        edx = 0xFFFFFFFF;
+    }else{
+        edx = 0x00000000;
+    }
+    return 0;
+} 
+
 int daa_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -1881,12 +2051,48 @@ int inc_i (cs_insn *insn){
 
     return 0;
 } 
+
+/**
+ *  INT. Call to Interrupt Procedure.
+ *
+ *  Opcode 0xCC, 0xCD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int int_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t v = op1.imm;
+    if(!v){
+        return -1;
+    }
+    return int_dispatcher(v, &eax, &ebx, &ecx, &edx, &esi, &edi, &ebp);
+
 } 
+
+/**
+ *  INTO. Call to Interrupt Procedure if Overflow.
+ *
+ *  Opcode 0xCE.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int into_i (cs_insn *insn){
     eip += insn->size;
+
+    return int_dispatcher(0x4,&eax, &ebx, &ecx, &edx, &esi, &edi, &ebp);
 } 
+
 int iret_i (cs_insn *insn){
     eip += insn->size;
 }
@@ -2882,12 +3088,49 @@ int js_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  LAHF. Load Flags into AH Register.
+ *
+ *  Opcode 0x9F.
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lahf_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t *ah = (uint8_t*)&eax; /* AL*/
+    ah++; /* AH */
+
+    /* Set AH to lower byte of EFLAGS */
+    *ah = eflags &0xFF;
+
+    return 0;
 } 
+
+/**
+ *  LAR. Load Access Rights Byte.
+ *
+ *  Opcode 0x0F 02 /r.
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lar_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    return 0;
 } 
+
+
 int lcall_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -2931,9 +3174,40 @@ int lea_i (cs_insn *insn){
 
 
 } 
+
+/**
+ *  LEAVE. High Level Procedure Exit.
+ *
+ *  Opcode 0xC9.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int leave_i (cs_insn *insn){
     eip += insn->size;
+    esp = ebp;
+    cs_x86 x86 = insn->detail->x86;
+
+    if (x86.prefix[0] == 0x66) {
+        /* Operand Size of 16b */
+        uint16_t * bp = (uint16_t *)&ebp;
+        /* POP 2B */
+        *bp=read16(esp);
+        esp+=2;
+
+    }else{
+        /* Operand Size of 32b */
+        /* POP 4B */
+        ebp=read16(esp);
+        esp+=4;
+    }
+    return 0;
 } 
+
+
 int les_i (cs_insn *insn){
     eip += insn->size;
 } 

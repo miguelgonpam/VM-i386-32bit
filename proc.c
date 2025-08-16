@@ -161,10 +161,10 @@ int main(int argc, char *argv[], char *envp[]){
 
       /* Move pointer to last line and Gets user's option */
       move(rows);
-      //ch = getchar();
       ch = getch();
+      //ch = getchar(); /* Does not allow arrows */
       
-      
+      /* Clean stdin */
       cleanv(rows-2, rows);
 
       /* Set stdin cursor at first line of stdin */
@@ -282,9 +282,6 @@ int main(int argc, char *argv[], char *envp[]){
          brk_ctr %= MAX_BRK;
 
       }else if('f' == ch){
-         /* Clean stdin zone */
-         //cleanv(rows-2, rows);
-
          /* Sets one instruction or stack addr (depending on focus variable) at the top of its window (either code or stack) */
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -294,7 +291,7 @@ int main(int argc, char *argv[], char *envp[]){
          /* If focus is et on code, ask for code address, if focus is 1, ask for stack address */
          focus?snprintf(txt, MAX_STR, "Stack address to lookup : (0x00000000 format)"):snprintf(txt, MAX_STR,"Code address to lookup : (0x00000000 format)");
 
-         /* While string received not matches the format 0x00000000 */
+         /* While string received does not match the format 0x00000000 */
          while(!res){
             /* Print asking string and get user's response */
             get_str(txt, str, MAX_STR-1, c);
@@ -373,7 +370,7 @@ int main(int argc, char *argv[], char *envp[]){
       old_ch = ch;
       
    }
-
+   /* Tag to clean everything before exiting if something goes wrong */
    exit:
    /* Free memory */
    for (int i = 0; i<rows*2; i++){

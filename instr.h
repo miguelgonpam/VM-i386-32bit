@@ -55,6 +55,7 @@ int cmps_i(cs_insn *insn);
 int cmpsb_i(cs_insn *insn);
 int cmpsw_i(cs_insn *insn);
 int cmpsd_i(cs_insn *insn);
+int cmpxchg(cs_insn *insn);
 int cwd_i(cs_insn *insn);
 int cdq_i(cs_insn *insn);
 int daa_i(cs_insn *insn);

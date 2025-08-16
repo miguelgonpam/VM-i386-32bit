@@ -12,7 +12,7 @@
 #include <poll.h>
 #include <grp.h>
 #include <sys/uio.h>
-#include <sys/io.h>
+//#include <sys/io.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -68,7 +68,7 @@ typedef struct stat32 {
 */
 
 
-uint8_t * mem;
+extern uint8_t * mem;
 
 
 /**
@@ -99,7 +99,7 @@ uint32_t do_write(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
 /**
  *  open, openat, creat - open and possibly create a file
  *
- *  Syscall number2
+ *  Syscall number 2
  *
  *  int open(const char *pathname, int flags);
  *  int open(const char *pathname, int flags, mode_t mode);

@@ -195,11 +195,11 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
 
 
-void move(int r){
+__inline void move(int r){
     printf("\033[%d;1H", r);
 }
 
-void clean(){
+__inline void clean(){
     printf("\033[K\n");
 }
 
