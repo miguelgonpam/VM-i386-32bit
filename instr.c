@@ -1977,21 +1977,481 @@ int daa_i (cs_insn *insn){
 int das_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  DIV. Unsigned Divide.
+ *
+ *  Opcode 0xF6 /6, 0xF7 /6.
+ *
+ *  Interrupt 0 if Quotient does not fit in its destination. Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AR, PF, CF are undefined.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int div_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Get operand size */
+    uint8_t s1 = op1.size;
+
+    if (s1 == 1){
+        /* Operand size is 8b */
+
+        uint8_t val;
+        /* Obatin r/m8 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint8_t *)regs[op2.reg]);
+        }else{
+            val = mem[eff_addr(op2.mem)];
+        }
+        /* Get pointers to AL and AX */
+        uint8_t * al = (uint8_t *)&eax;
+        uint16_t * ax = (uint16_t *)&eax;
+
+        /* Perform division */
+        uint16_t res = *ax / val; /* temp */
+        uint16_t rem = *ax % val; /* remainder */ 
+        if(res > 0xFF){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        *al = res; /* quotient = temp */
+        *(al+1) = rem; /* remainder = dividend MOD (r/m)*/
+
+    }else if(s1 == 2){
+        /* Operand size is 16b */
+
+        uint16_t val;
+        /* Obatin r/m16 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint16_t *)regs[op2.reg]);
+        }else{
+            val = *((uint16_t *)(mem + eff_addr(op2.mem)));
+        }
+        /* Get pointers to DX and AX */
+        uint16_t * dx = (uint16_t *)&edx;
+        uint16_t * ax = (uint16_t *)&eax;
+
+        /* Get full dividend */
+        uint32_t div = (*dx << 16) | *ax; 
+
+        /* Perform division */
+        uint32_t res = div / val; /* temp */
+        uint32_t rem = div % val; /* remainder */
+
+        if(res > 0xFFFF){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        *ax = res; /* quotient = temp */
+        *dx = rem; /* remainder = dividend MOD (r/m) */
+    }else{
+        /* Operand size 32b */
+
+        uint32_t val;
+        /* Obatin r/m32 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint32_t *)regs[op2.reg]);
+        }else{
+            val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        }
+
+        /* Get full dividend */
+        uint64_t div = ((uint64_t)edx << 32) | eax;
+        
+        /* Perform division */
+        uint64_t res = div / val; /* temp */
+        uint64_t rem = div % val; /* remainder */
+
+        if(res > 0xFFFFFFFF){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        eax = res; /* quotient = temp */
+        edx = rem; /* remainder = dividend MOD (r/m) */
+    }
+    return 0;
 } 
 int hlt_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  IDIV. Signed Divide.
+ *
+ *  Opcode 0xF6 /7, 0xF7 /7.
+ *
+ *  Interrupt 0 if Quotient does not fit in its destination. Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AR, PF, CF are undefined.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int idiv_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Get operand size */
+    uint8_t s1 = op1.size;
+
+    if (s1 == 1){
+        /* Operand size is 8b */
+
+        int8_t val;
+        /* Obatin r/m8 value */
+        if (op2.type == X86_OP_REG){
+            val = *((int8_t *)regs[op2.reg]);
+        }else{
+            val = mem[eff_addr(op2.mem)];
+        }
+        /* Get pointers to AL and AX */
+        int8_t * al = (uint8_t *)&eax;
+        int16_t * ax = (uint16_t *)&eax;
+
+        /* Perform division */
+        int16_t res = *ax / val; /* temp */
+        int16_t rem = *ax % val; /* remainder */ 
+        if(res > INT8_MAX || res < INT8_MIN){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        *al = res; /* quotient = temp */
+        *(al+1) = rem; /* remainder = dividend MOD (r/m)*/
+
+    }else if(s1 == 2){
+        /* Operand size is 16b */
+
+        int16_t val;
+        /* Obatin r/m16 value */
+        if (op2.type == X86_OP_REG){
+            val = *((int16_t *)regs[op2.reg]);
+        }else{
+            val = *((int16_t *)(mem + eff_addr(op2.mem)));
+        }
+        /* Get pointers to DX and AX */
+        int16_t * dx = (int16_t *)&edx;
+        int16_t * ax = (int16_t *)&eax;
+
+        /* Get full dividend */
+        int32_t div = (*dx << 16) | *ax; 
+
+        /* Perform division */
+        int32_t res = div / val; /* temp */
+        int32_t rem = div % val; /* remainder */
+
+        if(res > INT16_MAX || res < INT16_MIN){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        *ax = res; /* quotient = temp */
+        *dx = rem; /* remainder = dividend MOD (r/m) */
+    }else{
+        /* Operand size 32b */
+
+        int32_t val;
+        /* Obatin r/m32 value */
+        if (op2.type == X86_OP_REG){
+            val = *((int32_t *)regs[op2.reg]);
+        }else{
+            val = *((int32_t *)(mem + eff_addr(op2.mem)));
+        }
+
+        /* Get full dividend */
+        int64_t div = ((uint64_t)edx << 32) | eax;
+        
+        /* Perform division */
+        int64_t res = div / val; /* temp */
+        int64_t rem = div % val; /* remainder */
+
+        if(res > INT32_MAX || res < INT32_MIN){
+            /* If temp does not fit in quotient */
+            return -1000; /* Interrupt 0 */
+        }
+        eax = res; /* quotient = temp */
+        edx = rem; /* remainder = dividend MOD (r/m) */
+    }
+    return 0;
 } 
+
+/**
+ *  IMUL. Signed Multiply.
+ *
+ *  Opcode 0xF6 /5, 0xF7 /5.
+ *
+ *  Interrupt 0 if Quotient does not fit in its destination. Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF and CF as described, SF, ZF, AF, and PF are undefined
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int imul_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t *bytes = insn->bytes;
+    cs_x86 x86 = insn->detail->x86;
+
+    uint8_t opc1 = bytes[0];
+
+    if (opc1 == 0xF6){
+        cs_x86_op op1 = x86.operands[0];
+        int8_t val;
+        if(op1.type == X86_OP_REG){
+            val = *((int8_t *)regs[op1.reg]);
+        }else{
+            val = (int8_t)(mem[eff_addr(op1.mem)]);
+        }
+        /* AX = AL * r/m8 */
+        *((int16_t*)&eax)= (*((int8_t*)&eax)) * val;
+        if ( *((int16_t*)&eax) == (int16_t)sign_extend8_16(*((int8_t*)&eax))){
+            clear_Flag(CF);
+            clear_Flag(OF);
+        }else{
+            set_Flag(OF);
+            set_Flag(CF);
+        }
+    }else if(opc1 == 0xF7){
+        cs_x86_op op1 = x86.operands[0];
+        uint8_t s1 = op1.size;
+        if(s1 == 2){
+            /* 16b operand */
+            int16_t val;
+            if(op1.type == X86_OP_REG){
+                val = *((int16_t *)regs[op1.reg]);
+            }else{
+                val = *((int16_t *)(mem + eff_addr(op1.mem)));
+            }
+            /* DX:AX = AX * r/m16 */
+            int32_t res = (*((int16_t*)&eax)) * val;
+            *((int16_t*)&edx) = (res >> 16)&0xFFFF;
+            *((int16_t*)&eax) = res&0xFFFF;
+
+            if ( res == (int32_t)sign_extend16_32(*((int16_t*)&eax))){
+                clear_Flag(CF);
+                clear_Flag(OF);
+            }else{
+                set_Flag(OF);
+                set_Flag(CF);
+            }
+        }else{
+            /* 32b operand */
+            int32_t val;
+            if(op1.type == X86_OP_REG){
+                val = *((int32_t *)regs[op1.reg]);
+            }else{
+                val = *((int32_t *)(mem + eff_addr(op1.mem)));
+            }
+            /* EDX:EAX = EAX * r/m32 */
+            int64_t res = eax * val;
+            edx = (res >> 32)&0xFFFFFFFF;
+            eax = res&0xFFFFFFFF;
+            if ( res == (int64_t)sign_extend32_64(eax)){
+                clear_Flag(CF);
+                clear_Flag(OF);
+            }else{
+                set_Flag(OF);
+                set_Flag(CF);
+            }
+        }
+    }else if(opc1 == 0x0F){
+        cs_x86_op op1 = x86.operands[0];
+        cs_x86_op op2 = x86.operands[1];
+        uint8_t s1 = op1.size;
+        if(s1 == 2){
+            int16_t * r16, *rm16;
+            if (op2.type == X86_OP_REG){
+                rm16 = (int16_t*)regs[op2.reg];
+            }else{ /* X86_OP_MEM */
+                rm16 = (int16_t *)(mem + eff_addr(op2.mem));
+            }
+            r16 = (int16_t*)regs[op1.reg];
+            int32_t res = *r16 * *rm16;
+            *r16 *= *rm16;
+            if (res >= INT16_MIN && res <= INT16_MAX ){
+                clear_Flag(CF);
+                clear_Flag(OF);
+            }else{
+                set_Flag(OF);
+                set_Flag(CF);
+            }
+        }else{ /* s1 == 4*/
+            int32_t * r32, *rm32;
+            if (op2.type == X86_OP_REG){
+                rm32 = (int32_t*)regs[op2.reg];
+            }else{ /* X86_OP_MEM */
+                rm32 = (int32_t *)(mem + eff_addr(op2.mem));
+            }
+            
+            r32 = (int32_t*)regs[op1.reg];
+            int64_t res = *r32 * *rm32;
+            *r32 *= *rm32;
+            if (res >= INT32_MIN && res <= INT32_MAX ){
+                clear_Flag(CF);
+                clear_Flag(OF);
+            }else{
+                set_Flag(OF);
+                set_Flag(CF);
+            }
+        }
+    }else if(opc1 == 0x6B){
+        if(x86.op_count == 3){
+            cs_x86_op op1 = x86.operands[0];
+            cs_x86_op op2 = x86.operands[1];
+            cs_x86_op op3 = x86.operands[2];
+            uint8_t s1 = op1.size;
+
+            if(s1 == 2){
+                int16_t * r16 = (int16_t *)regs[op1.reg];
+                int16_t * rm16;
+                if(op2.type == X86_OP_REG){
+                    rm16 = (int16_t *)regs[op2.reg];
+                }else{
+                    rm16 = (int16_t *)(mem + eff_addr(op2.mem));
+                }
+                int16_t imm = (int16_t)sign_extend8_16(op3.imm);
+
+                *r16 = *rm16 * imm;
+                int32_t res = *rm16 * imm;
+                if (res >= INT16_MIN && res <= INT16_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+
+            }else{
+                int32_t * r32 = (int32_t *)regs[op1.reg];
+                int32_t * rm32;
+                if(op2.type == X86_OP_REG){
+                    rm32 = (int32_t *)regs[op2.reg];
+                }else{
+                    rm32 = (int32_t *)(mem + eff_addr(op2.mem));
+                }
+                int32_t imm = (int32_t)sign_extend8_32(op3.imm);
+
+                *r32 = *rm32 * imm;
+                int64_t res = *rm32 * imm;
+                if (res >= INT32_MIN && res <= INT32_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }
+        }else{
+            cs_x86_op op1 = x86.operands[0];
+            cs_x86_op op2 = x86.operands[1];
+            uint8_t s1 = op1.size;
+            if(s1 == 2){
+                *((int16_t*)regs[op1.reg]) *= (int16_t)sign_extend8_16(op2.imm);
+                int32_t res = *((int16_t*)regs[op1.reg]) * (int16_t)sign_extend8_16(op2.imm);
+                if (res >= INT16_MIN && res <= INT16_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }else{
+                *((int32_t*)regs[op1.reg]) *= (int32_t)sign_extend8_32(op2.imm);
+                int64_t res = *((int32_t*)regs[op1.reg]) * (int32_t)sign_extend8_32(op2.imm);
+                if (res >= INT32_MIN && res <= INT32_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }
+        }
+    }else{ /* opc1 == 0x69 */
+        if(x86.op_count == 3){
+            cs_x86_op op1 = x86.operands[0];
+            cs_x86_op op2 = x86.operands[1];
+            cs_x86_op op3 = x86.operands[2];
+            uint8_t s1 = op1.size;
+
+            if(s1 == 2){
+                int16_t * r16 = (int16_t *)regs[op1.reg];
+                int16_t * rm16;
+                if(op2.type == X86_OP_REG){
+                    rm16 = (int16_t *)regs[op2.reg];
+                }else{
+                    rm16 = (int16_t *)(mem + eff_addr(op2.mem));
+                }
+                int16_t imm = (op3.imm);
+
+                *r16 = *rm16 * imm;
+                int32_t res = *rm16 * imm;
+                if (res >= INT16_MIN && res <= INT16_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }else{
+                int32_t * r32 = (int32_t *)regs[op1.reg];
+                int32_t * rm32;
+                if(op2.type == X86_OP_REG){
+                    rm32 = (int32_t *)regs[op2.reg];
+                }else{
+                    rm32 = (int32_t *)(mem + eff_addr(op2.mem));
+                }
+                int32_t imm = (op3.imm);
+
+                *r32 = *rm32 * imm;
+                int64_t res = *rm32 * imm;
+                if (res >= INT32_MIN && res <= INT32_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }
+        }else{ /* op_count == 2 */
+            cs_x86_op op1 = x86.operands[0];
+            cs_x86_op op2 = x86.operands[1];
+            uint8_t s1 = op1.size;
+            if(s1 == 2){
+                *((int16_t*)regs[op1.reg]) *= (int16_t)(op2.imm);
+                int32_t res = *((int16_t*)regs[op1.reg]) = (int16_t)(op2.imm);
+                if (res >= INT16_MIN && res <= INT16_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }else{
+                *((int32_t*)regs[op1.reg]) *= (int32_t)(op2.imm);
+                int64_t res = *((int32_t*)regs[op1.reg]) = (int32_t)(op2.imm);
+                if (res >= INT32_MIN && res <= INT32_MAX ){
+                    clear_Flag(CF);
+                    clear_Flag(OF);
+                }else{
+                    set_Flag(OF);
+                    set_Flag(CF);
+                }
+            }
+        }
+    }
+    return 0;
 } 
+
+
 int in_i (cs_insn *insn){
     eip += insn->size;
-} 
+}
+
+
 int inc_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3257,9 +3717,109 @@ int movs_i (cs_insn *insn){
     eip += insn->size;
 } 
 
+/**
+ *  MUL. Unsigned Multiplication of AL or AX.
+ *
+ *  Opcode 0xF6 /4, 0xF7 /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF and CF as described, SF, ZF, AF, PF, and CF are undefined.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int mul_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Get operand size */
+    uint8_t s1 = op1.size;
+
+    if (s1 == 1){
+        /* Operand size is 8b */
+
+        uint8_t val;
+        /* Obatin r/m8 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint8_t *)regs[op2.reg]);
+        }else{
+            val = mem[eff_addr(op2.mem)];
+        }
+        /* Get pointers to AL and AX */
+        uint8_t * al = (uint8_t *)&eax;
+        uint16_t * ax = (uint16_t *)&eax;
+        /* Perform multiply */
+        *ax = *al * val;
+        /* Check if AH is zero and set flags */
+        if(zero(*(al+1))){
+            clear_Flag(CF);
+            clear_Flag(OF);
+        }else{
+            set_Flag(OF);
+            set_Flag(CF);
+        }
+    }else if(s1 == 2){
+        /* Operand size is 16b */
+
+        uint16_t val;
+        /* Obatin r/m16 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint16_t *)regs[op2.reg]);
+        }else{
+            val = *((uint16_t *)(mem + eff_addr(op2.mem)));
+        }
+        /* Get pointers to DX and AX */
+        uint16_t * dx = (uint16_t *)&edx;
+        uint16_t * ax = (uint16_t *)&eax;
+        uint32_t res = *ax * val;
+        *ax = res & 0xFFFF; /* Lower 2 bytes */
+        *dx = (res >> 16)&0xFFFF; /* Higher 2 bytes */
+        if(zero(*dx)){
+            clear_Flag(CF);
+            clear_Flag(OF);
+        }else{
+            set_Flag(OF);
+            set_Flag(CF);
+        }
+    }else{
+        /* Operand size 32b */
+
+        uint32_t val;
+        /* Obatin r/m32 value */
+        if (op2.type == X86_OP_REG){
+            val = *((uint32_t *)regs[op2.reg]);
+        }else{
+            val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        }
+
+        uint64_t res = eax * val;
+        eax = res & 0xFFFFFFFF; /* Lower 4 bytes */
+        edx = (res >> 32)&0xFFFFFFFF; /* Higher 4 bytes */
+        if(zero(edx)){
+            clear_Flag(CF);
+            clear_Flag(OF);
+        }else{
+            set_Flag(OF);
+            set_Flag(CF);
+        }
+    }
+    return 0;
+
 } 
+
+/**
+ *  NEG. Two's Complement Negation.
+ *
+ *  Opcode 0xF6 /3, 0xF7 /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF as described , OF, SF, ZF, and PF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int neg_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3307,10 +3867,32 @@ int neg_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  NOP. No operation.
+ *
+ *  Opcode 0x90.
+ *
+ *  No exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int nop_i (cs_insn *insn){
     eip += insn->size;
 }
 
+/**
+ *  NEG. One's Complement Negation.
+ *
+ *  Opcode 0xF6 /2, 0xF7 /2.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int not_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -5334,6 +5916,10 @@ uint16_t sign_extend8_16(uint8_t v){
     return (v & 0x80)?(v | 0xFF00):v;
 }
 
+uint64_t sign_extend32_64(uint32_t v){
+    return (v & 0x80000000)?(v | 0xFFFFFFFF00000000):v;
+}
+
 /**
  * Zero-extends a 8bit value into 32 bits.
  * 
@@ -5367,3 +5953,4 @@ uint32_t zero_extend16_32(uint16_t v){
 uint16_t zero_extend8_16(uint8_t v){
     return (v & 0x00FF);
 }
+
