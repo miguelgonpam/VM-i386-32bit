@@ -1,4 +1,4 @@
-#include <stdint.h>
+    #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <capstone/capstone.h>
@@ -1971,11 +1971,72 @@ int cdq_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  DAA. Decimal Adjust AL after Addition.
+ *
+ *  Opcode 0x27. 
+ *
+ *  No exceptions.
+ *
+ *  AF and CF as described, SF, ZF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int daa_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t * al = (uint8_t *)&eax;
+
+    if((*al &0xF) > 9 || test_Flag(AF)){
+        *al += 6;
+        set_Flag(AF);
+    }else{
+        clear_Flag(AF);
+    }
+    if((*al > 0x9F) || test_Flag(CF)){
+        *al += 0x60;
+        set_Flag(CF);
+    }else{
+        clear_Flag(CF);
+    }
+
+    sign(*al, 0x08)?set_Flag(SF):clear_Flag(SF);
+    zero(*al)?set_Flag(ZF):clear_Flag(ZF);
+    parity(*al)?set_Flag(PF):clear_Flag(PF);
+    return 0;
 } 
+
+/**
+ *  DAS. Decimal Adjust AL after Substraction.
+ *
+ *  Opcode 0x2F. 
+ *
+ *  No exceptions.
+ *
+ *  AF and CF as described, SF, ZF, and PF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int das_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t * al = (uint8_t *)&eax;
+
+    if ((*al &0xF) > 9 || test_Flag(AF)){
+        *al -= 6;
+        set_Flag(AF);
+    }else{
+        clear_Flag(AF);
+    }
+    if(*al > 0x9F || test_Flag(CF)){
+        *al -= 0x60;
+        set_Flag(CF);
+    }else{
+        clear_Flag(CF);
+    }
+
+    sign(*al, 0x08)?set_Flag(SF):clear_Flag(SF);
+    zero(*al)?set_Flag(ZF):clear_Flag(ZF);
+    parity(*al)?set_Flag(PF):clear_Flag(PF);
+    return 0;
 } 
 
 /**
