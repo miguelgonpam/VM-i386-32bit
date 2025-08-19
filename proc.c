@@ -108,14 +108,18 @@ int blind_main(int argc, char *argv[], char *envp[]){
    }
 
    /* Main loop */
-         while (true){
-         /* Disassemble the current instruction. Bad alignment could have happened. */
-         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
-            return -1;
+   while (true){
+      /* Disassemble the current instruction. Bad alignment could have happened. */
+      if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+         goto exit;
 
-         /* Check interrupts ???*/
-         dispatcher(ins[0].mnemonic, &ins[0]);
-      }
+      /* Check interrupts ???*/
+      dispatcher(ins[0].mnemonic, &ins[0]);
+
+      /* Free ins */
+      cs_free(ins, 1);
+      ins = NULL;
+   }
    exit:
    free(mem);
    return 0;
@@ -262,8 +266,9 @@ int interface_main(int argc, char *argv[], char *envp[]){
          move(rows);
          /* Check interrupts ???*/
          dispatcher(ins[0].mnemonic, &ins[0]);
-
-
+         /* Free ins */
+         cs_free(ins, 1);
+         ins = NULL;
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
             if (insn[i].address == eip){
@@ -288,6 +293,41 @@ int interface_main(int argc, char *argv[], char *envp[]){
             move(rows);
             /* Check interrupts ???*/
             dispatcher(ins[0].mnemonic, &ins[0]);
+            /* Free ins */
+            cs_free(ins, 1);
+            ins = NULL;
+         }
+         /* Find EIP and set it at the top of the screen */
+         for(int i=0; i<count;i++){
+            if (insn[i].address == eip){
+               /* If it is the first instruction, show it,
+                  If it is the second or greater, let the previous one show */
+               scr_c = i?i-1:i;
+               break;
+            }
+         }
+         /* Set top of stack at the top of stack window */
+         scr_s=0;
+
+      }else if('n' == ch){   
+         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+               goto exit1;
+         /* Get next instruction. Designed to avoid stepping into CALL instruction. */
+         uint32_t stop = eip + ins[0].size;
+         /* While doesnt hit a breakpoint, continue executing */
+         while (eip != stop){
+            /* Disassemble again the eip instruction because if its not on the screen,
+               we cannot know its index within insn array.
+               The 1 indicates to only disassemble 1 instruction.
+            */
+            if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+               goto exit1;
+            move(rows);
+            /* Check interrupts ???*/
+            dispatcher(ins[0].mnemonic, &ins[0]);
+            /* Free ins */
+            cs_free(ins, 1);
+            ins = NULL;
          }
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
@@ -418,6 +458,24 @@ int interface_main(int argc, char *argv[], char *envp[]){
          cleanv(rows-2, rows);
          move(rows-2);
          printf("%s",txt);
+      }else if('t' == ch){
+         char str[MAX_STR];
+         int res = 0, c = 0;
+         uint32_t dir;
+
+         /* While string received not matches the format 0x00000000 */
+         while(!res){
+            /* Print asking string and get user's response */
+            get_str("Address to dump string : (0x00000000 format)", str, MAX_STR-1, c);
+            /* Format check */
+            res = sscanf(str, "0x%08x", &dir);
+            /* Flag for showing "Wrong format" */
+            c = 1;
+         }
+         char txt[25];
+         cleanv(rows-2, rows);
+         move(rows-2);
+         printf("0x%08x : %s",dir, mem+dir);
       }else if('d' == ch){
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -476,6 +534,6 @@ int interface_main(int argc, char *argv[], char *envp[]){
 }
 
 int main(int argc, char *argv[], char *envp[]){
-   //return interface_main(argc, argv, envp);
-   return blind_main(argc, argv, envp);
+   return interface_main(argc, argv, envp);
+   //return blind_main(argc, argv, envp);
 }

@@ -29,7 +29,7 @@ const char *inss[] = {
     "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
     "jpo","js", "jz","lahf","lar","lcall","lds","lea","leave","les","lfs",
     "lgdt","lgs","lidt","lldt","lmsw","lods","loop","loope","loopne","loopnz",
-    "loopz","lsl","ltr","mov","movs","movsx","movzx","mul","neg","nop","not",
+    "loopz","lsl","ltr","mov","movs", "movsb", "movsw", "movsd", "movsx","movzx","mul","neg","nop","not",
     "or","out","outs","pop","popa","popf","push","pusha","pushf","ret","rcl","rcr",
     "rol","ror","sahf","sal","sar","sbb","scas","seta","setae","setb","setbe",
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
@@ -47,7 +47,7 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, jz_i, lahf_i, 
     lar_i, lcall_i, lds_i, lea_i, leave_i, les_i, lfs_i, lgdt_i, lgs_i, lidt_i, 
     lldt_i, lmsw_i, lods_i, loop_i, loope_i, loopne_i, loopnz_i, loopz_i, lsl_i, 
-    ltr_i, mov_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
+    ltr_i, mov_i, movs_i, movs_i, movs_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
     outs_i, pop_i, popa_i, popf_i, push_i, pusha_i, pushf_i, ret_i, rcl_i, rcr_i, rol_i, 
     ror_i, sahf_i, sal_i, sar_i, sbb_i, scas_i, seta_i, setae_i, setb_i, setbe_i, 
     setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
@@ -1219,7 +1219,14 @@ int cmp_i(cs_insn *insn){
     /* Result */
     uint32_t res;
     if (op2.type == X86_OP_REG){
-        val2 = reg_val(op2.reg);
+        if(s2 == 1){
+            val2 = *((uint8_t*)regs[op2.reg]);
+        }else if(s2 == 2){
+            val2 = *((uint16_t*)regs[op2.reg]);
+        }else{
+            val2 = *((uint32_t*)regs[op2.reg]);
+        }
+        
     }else if(op2.type == X86_OP_IMM){
         /* If imm operand is 1 byte, we need to sign-extend it */
         if (s2 == 1){
@@ -1249,24 +1256,15 @@ int cmp_i(cs_insn *insn){
 
     if (op1.type == X86_OP_REG){
         void * p = regs[op1.reg];
-        uint8_t base = regs_size[op1.reg];
-        switch(base){
-            case 0x8:
-                val1= *((uint8_t *) p);
-                res = val1- (val2 & 0xFF);
-                break;
-            case 0x10:
-                val1 = *((uint16_t *) p);
-                res = val1 - (val2 & 0xFFFF);
-                break;
-            case 0x20:
-                val1 = *((uint32_t *) p);    
-                res = val1 - val2;
-                break;
-            default:
-                val1 = *((uint32_t *) p);    
-                res = val1 - val2;
-                break;
+        if (s1 == 1){
+            val1= *((uint8_t *) p);
+            res = val1- (val2 & 0xFF);
+        }else if(s1 == 2){
+            val1 = *((uint16_t *) p);
+            res = val1 - (val2 & 0xFFFF);
+        }else{
+            val1 = *((uint32_t *) p);    
+            res = val1 - val2;
         }
     }else if (op1.type == X86_OP_MEM){
         if (s1 == 1){
@@ -1283,8 +1281,8 @@ int cmp_i(cs_insn *insn){
     }
 
     (val1 < val2)?set_Flag(CF):clear_Flag(CF);
-    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
-    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    overflow(val1, val2, res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
     (!res)?set_Flag(ZF):clear_Flag(ZF);
     adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
     parity(res)?set_Flag(PF):clear_Flag(PF);
@@ -1307,6 +1305,8 @@ int dec_i(cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
+    uint8_t s1 = op1.size;
+
     uint32_t res = 0x0, oper1 = 0x0;
     if (op1.type == X86_OP_REG){
         void *p = regs[op1.reg];
@@ -1338,8 +1338,8 @@ int dec_i(cs_insn *insn){
     /* Flags as described on Appendix C */
     /* CF formula for substracting */
     (oper1 < 1)?set_Flag(CF):clear_Flag(CF);
-    overflow(oper1, 1, res, 32)?set_Flag(OF):clear_Flag(OF);
-    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    overflow(oper1, 1, res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
     (!res)?set_Flag(ZF):clear_Flag(ZF);
     adjust(oper1, 1, res)?set_Flag(AF):clear_Flag(AF);
     parity(res)?set_Flag(PF):clear_Flag(PF);
@@ -1648,8 +1648,8 @@ int sub_i(cs_insn *insn){
     }
     
     (val1 < val2)?set_Flag(CF):clear_Flag(CF);
-    overflow(val1, val2, res, 32)?set_Flag(OF):clear_Flag(OF);
-    sign(res, 0x20)?set_Flag(SF):clear_Flag(SF);
+    overflow(val1, val2, res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
     (!res)?set_Flag(ZF):clear_Flag(ZF);
     adjust(val1, val2, res)?set_Flag(AF):clear_Flag(AF);
     parity(res)?set_Flag(PF):clear_Flag(PF);
@@ -4230,6 +4230,74 @@ int sahf_i (cs_insn *insn){
 } 
 int sbb_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* Get the operands size */
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    /* Op2, result, Op1 */
+    uint32_t val,res, ini;
+    void * oper1, * oper2;
+
+    /* Get pointer to first operand */
+    if (op1.type == X86_OP_REG){
+        oper1 = regs[op1.reg];
+    }else{ /* X86_OP_MEM */
+        oper1 = (void *)(mem + eff_addr(op1.mem));
+    }
+
+    /* Get value of second operand */
+    if (op2.type == X86_OP_IMM){
+        val = op2.imm;
+        if (s2 == 1 && (s1 == 2 || s1 == 4)){ /* SBB a byte to a word or doubleword (sign-extend needed) */
+            if (s1 == 2){
+                val = sign_extend8_16(val);
+            }else{
+                val = sign_extend8_32(val);
+            }
+        }
+    }else{
+        /* Get pointer to second operand */
+        if (op2.type == X86_OP_REG){
+            oper2 = regs[op2.reg];
+        }else{
+            oper2 = (void *)(mem + eff_addr(op2.mem));
+        }
+        /* Extract value out of second operand pointer */
+        if (s2 == 2){
+            val = *(uint16_t*)oper2;
+        }else if(s2 == 4){
+            val = *(uint32_t*)oper2;
+        }else if(s1 == 1 && s2 == 1){
+            val = *(uint8_t*)oper2;
+        }
+    }
+    
+    /* Perform Substraction with borrow using op1 pointer and op2 value */
+    if (s1 == 1){
+        ini = *(uint8_t *)oper1;
+        *(uint8_t *)oper1 = ini - val - test_Flag(CF);
+        res = *(uint8_t *)oper1;
+    }else if(s1 == 2){
+        ini = *(uint16_t *)oper1;
+        *(uint16_t *)oper1 = ini - val - test_Flag(CF);
+        res = *(uint16_t *)oper1;
+    }else{
+        ini = *(uint32_t *)oper1;
+        *(uint32_t *)oper1 = ini - val - test_Flag(CF);
+        res = *(uint32_t *)oper1;
+    }
+
+    (ini < (val + test_Flag(CF)))?set_Flag(CF):clear_Flag(CF);
+    overflow(ini, (val+test_Flag(CF)), res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(ini, (val+test_Flag(CF)), res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    
 } 
 int scas_i (cs_insn *insn){
     eip += insn->size;
