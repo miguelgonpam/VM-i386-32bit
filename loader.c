@@ -255,15 +255,16 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
 
     
 
-    /* Read all program headers*/
+    /* Read all program headers */
     fseek(elf_file, ehdr.e_phoff, SEEK_SET);
     uint8_t found = 0;
     long phdrs_start = ehdr.e_phoff;
 
-    /* Values for pushing auxv*/
+    /* Values for pushing auxv */
     ph_num = ehdr.e_phnum;
     ph_size = ehdr.e_phentsize;
 
+    /* Iterate trough Program Headers */
     for (int i = 0; i < ehdr.e_phnum; i++) {
         fseek(elf_file, phdrs_start + i * sizeof(Elf32_Phdr), SEEK_SET);
         Elf32_Phdr phdr;
@@ -272,13 +273,15 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
         if (phdr.p_type != PT_LOAD)
             continue;
 
+        /*
         if (!found && phdr.p_flags & PF_X){ 
-            /* If program header Executable Flag is set to 1, and its the first to be this way, we store this vaddr, for disassembly. 
-               This allows to have the first v_addr to disassembly. PF_X is defined in <elf.h>.
-            */
+            // If program header Executable Flag is set to 1, and its the first to be this way, we store this vaddr, for disassembly. 
+            //   This allows to have the first v_addr to disassembly. PF_X is defined in <elf.h>.
+            
             found = 1;
             *ini=phdr.p_vaddr;
         }
+        */
         fseek(elf_file, phdr.p_offset, SEEK_SET);
         if (!i){
             ph_addr = phdr.p_vaddr + ehdr.e_phoff;
@@ -289,6 +292,19 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
 
         fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
         
+    }
+
+
+    /* Iterate Section Headers */
+    fseek(elf_file, ehdr.e_shoff, SEEK_SET);
+    for (int i = 0; i < ehdr.e_shnum; i++) {
+        Elf32_Shdr shdr;
+        fread(&shdr, 1, sizeof(shdr), elf_file);
+
+        if (shdr.sh_type == SHT_PROGBITS && (shdr.sh_flags & SHF_EXECINSTR)) {
+            *ini = shdr.sh_addr;
+            break; // nos quedamos solo con el primero
+        }
     }
 
     fclose(elf_file);

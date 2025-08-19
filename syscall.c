@@ -12,7 +12,9 @@
 #include <poll.h>
 #include <grp.h>
 #include <sys/uio.h>
-//#include <sys/io.h>
+#if defined __x86_64__ /* Only IN and OUT in x86 */
+    #include <sys/io.h>
+#endif
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -30,6 +32,8 @@
 #include <sys/msg.h>
 #include <sys/xattr.h>
 #include <sys/ptrace.h>
+#include <sys/ioctl.h>
+//#include <asm/ldt.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
@@ -37,6 +41,10 @@
 #include <time.h>
 
 #include "instr.h"
+#include "types.h"
+
+
+
 
 /*
 typedef struct stat32 {
@@ -69,7 +77,16 @@ typedef struct stat32 {
 
 
 extern uint8_t * mem;
+extern uint32_t gdtr;
 
+
+
+/**
+ * Function for the unimplemented syscalls.
+ */
+uint32_t unimpl (uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    return 0;
+}
 
 /**
  *  read - read from a file descriptor
@@ -303,7 +320,38 @@ uint32_t do_brk(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, ui
 uint32_t do_rt_sigaction(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number13
 uint32_t do_rt_sigprocmask(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number14
 uint32_t do_rt_sigreturn(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number15
-uint32_t do_ioctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number16
+
+/**
+ * ioctl - read from or write to a file descriptor at a given offset
+ *
+ * Syscall number 16
+ *
+ * int ioctl(int fd, int op, ...);            /* musl, other UNIX 
+ */
+uint32_t do_ioctl(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    /* Get operation number */
+    uint32_t op = *arg2;
+    uint32_t res;
+
+    /* If does not belong to <termios.h> */
+    if( op < 0x5401 || op > 0x545B ){
+        return -ENOTTY;
+    }
+    if ((op >= 0x5401 && op <= 0x5404) || op == 0x5456 || op == 0x5457) // struct termios *
+        res = syscall(SYS_ioctl, *arg1, op, (struct termios*)(mem+*arg3)); 
+    else if((op >= 0x5409 && op<= 0x540B) || op == 0x540E || op == 0x5425 ) // int
+        res = syscall(SYS_ioctl, *arg1, op, *arg3);
+    else if(op == 0x540C || op == 0x540D || op == 0x541D || op == 0x5422 || op == 0x5450 || op == 0x5451) //void
+        res = syscall(SYS_ioctl, *arg1, op);
+    else if(op == 0x5411 || (op >= 0x5415 && op <= 0x541B) || op == 0x5420 || op == 0x5421 || (op >= 0x5423 && op <= 0x5425) || 
+            op == 0x5452 || op == 0x5454 || op == 0x5455 || op == 0x5459 ){ // int *
+        res = syscall(SYS_ioctl, *arg1, op, (int *)(mem+*arg3));}
+    else if (op == 0x540F || op == 0x5410) // pid_t *
+        res = syscall(SYS_ioctl, *arg1, op, (pid_t *)(mem+*arg3));
+    else if(op == 0x5413 || op == 0x5414) // struct winsize *
+        res = syscall(SYS_ioctl, *arg1, op, (struct winsize *)(mem+*arg3));
+    return res;
+}
 
 /**
  * pread, pwrite - read from or write to a file descriptor at a given offset
@@ -331,7 +379,39 @@ uint32_t do_pwrite64(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg
 
 
 uint32_t do_readv(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number19
-uint32_t do_writev(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number20
+
+
+
+/**
+ * writev - read or write data into multiple buffers.
+ *
+ * Syscall number 20
+ *
+ * ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+ */
+uint32_t do_writev(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    /* int iovcnt */
+    int count = *arg3;
+    
+    /* Pointer to first iovec32 struct within emulated 32bit memory */
+    struct iovec32 *iovec = (struct iovec32 *)(mem + *arg2);
+    /* Array that will contain the 64bit-translated iovecs for performing the 64bit syscall */
+    struct iovec64 *iovecs = calloc(count, sizeof(struct iovec64));
+    
+    for(int i=0;i<count;i++){
+        /* Get iesim-iovec32 based on pointer to first (iovec) */
+        struct iovec32 iv = iovec[i];
+        /* Translate to 64bit */
+        iovecs[i].iov_base = (void *)(iv.iov_base + mem); /* Translated pointer (pointer to mem 0x00000000 + virtual address (iov_base)) */
+        iovecs[i].iov_len  = iv.iov_len;
+    }
+    /* Perform syscall */
+    uint32_t res = syscall(SYS_writev, *arg1, iovecs, count);
+    /* Free heap-allocated array for iovec64 */
+    free(iovecs);
+    /* Return result */
+    return res;
+}
 
 
 /**
@@ -1865,7 +1945,72 @@ uint32_t do_time(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, u
 uint32_t do_futex(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number202
 uint32_t do_sched_setaffinity(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number203
 uint32_t do_sched_getaffinity(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number204
-uint32_t do_set_thread_area(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number205
+
+/**
+ *  set_thread_area - manipulate thread-local storage information
+ *
+ *  Syscall number 205
+ *
+ *  int syscall(SYS_get_thread_area, struct user_desc *u_info);
+ */
+uint32_t do_set_thread_area(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    /* Get address of the GDT table using the GDTR register */
+    GDT_Descriptor * gdt = (GDT_Descriptor *)(mem+ gdtr);
+    struct user_desc32 *u = (struct user_desc32*)(mem+ *arg1);
+    uint8_t index;
+    if (u->entry_number != -1){
+        /* Set entry_number */
+        index = u->entry_number;
+    }else{
+        /* Look for available entry */
+        
+        for (int i=0; i<3; i++){
+            /* Get index to Thread-Local Storage reserved entries in GDT */
+            index = GDT_ENTRIES-GDT_TLS_RESERVED+i;
+            /* If current entry is not being used */
+            if (!gdt[index].used){
+                break;
+            }
+            if (i == 2){
+                /* Last iteration and no entry available. Failed */
+                return -1;
+            }
+        }
+    }
+    /* Create entry within Global Descriptors Table */
+    
+    gdt[index].used = 1;
+    gdt[index].limit_low = u->limit;
+    gdt[index].base_low = u->base_addr & 0xFFFF;
+    gdt[index].base_mid = (u->base_addr >> 16) & 0xFF;
+    gdt[index].base_high = (u->base_addr >> 24) & 0xFF;
+    uint8_t type = 0;
+    if (u->contents == 0) {          // data
+        type = u->read_exec_only ? 0x0 : 0x2;
+    } else if (u->contents == 2) {   // code
+        type = u->read_exec_only ? 0x8 : 0xA;
+    }
+
+    gdt[index].access = (1<<7)                     // P=1 (present)
+        | (3<<5)                     // DPL=3 (user)
+        | (1<<4)                     // S=1 (code/data)
+        | type;
+
+    if (u->seg_not_present)
+        gdt[index].access &= ~(1<<7);              // P=0
+
+    gdt[index].granularity = ((u->limit >> 16) & 0x0F)
+        | (u->limit_in_pages ? 0x80 : 0x00)
+        | (u->seg_32bit ? 0x40 : 0x00)
+        | (u->useable ? 0x10 : 0x00);
+    
+    /* Return entry number within the struct */
+    u->entry_number = index;
+
+    /* Success */
+    return 0;
+}
+
 uint32_t do_io_setup(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number206
 uint32_t do_io_destroy(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number207
 uint32_t do_io_getevents(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number208

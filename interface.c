@@ -63,8 +63,11 @@ int init_interface(){
     get_lines(cols-2, lines);
 
     /* Obtain code and stack boxes width */
-    w_code = (cols/3)*2;
-    w_stack = cols - w_code;
+    //w_code = (cols/3)*2;
+    //w_stack = cols - w_code;
+
+    w_code = cols-W_STACK;
+    w_stack = W_STACK;
 
     /* Fill code and stack strings with box lines */
     get_lines(w_code-2, code);

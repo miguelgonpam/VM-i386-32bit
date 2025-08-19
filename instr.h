@@ -8,8 +8,9 @@
 
 #define STACK_BOTTOM 0xFFF00000
 #define STACK_TOP (STACK_BOTTOM - 0x22000)
-#define GDT_ENTRIES 0x8
+#define GDT_ENTRIES 0x9
 #define GDT_ADDR 0xC0FFF000
+#define GDT_TLS_RESERVED 0x3
 
 typedef struct{
     uint16_t limit_low;
@@ -18,6 +19,7 @@ typedef struct{
     uint8_t access;
     uint8_t granularity;
     uint8_t base_high;
+    uint8_t used;
 }GDT_Descriptor;
 
 

@@ -1,4 +1,4 @@
-    #include <stdint.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <capstone/capstone.h>
@@ -14,6 +14,7 @@ typedef int(*Instruction)(cs_insn *insn);
 uint8_t * mem;
 uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0, gdtr = 0; 
 extern uint32_t eflags;
+extern int rows, cols;
 
 /* REGISTER            INVL,   AH,   AL,   AX,   BH,   BL,   BP,  BPL,   BX,   CH,   CL,   CS,   CX,   DH,   DI,  DIL,   DL,   DS,   DX,  EAX,  EBP,  EBX,  ECX,  EDI,  EDX,  EFLAGS,  EIP,  EIZ,   ES,  ESI,  ESP, FPSW,   FS,   GS,   IP,  RAX,  RBP,  RBX,  RCX,  RDI,  RDX,  RIP,  RIZ,  RSI,  RSP,   SI,  SIL,   SP,  SPL,   SS  */
 /* INDEX                  0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24       25    26    27    28    29    30    31    32    33    34    35    36    37    38    39    40    41    42    43    44    45    46    47    48    49  */
@@ -34,7 +35,7 @@ const char *inss[] = {
     "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
     "setns","seto","setp","setpe","setpo","sets","setz","shl","shr","sal", "sar", "stc","std","sti",
-    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movs", "rep outs", "rep stosb",
+    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movsb", "rep movsw", "rep movsd", "rep outs", "rep stosb",
     "rep stosw","rep stosd", "cmovne"
     };
 
@@ -53,14 +54,7 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
     setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, setz_i, shl_i, shr_i, sal_i, sar_i, stc_i, 
     std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
-    rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i, cmovne_i};
-
-
-
-
-
-
-
+    rep_movs_i, rep_movs_i, rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i, cmovne_i};
 
 
 /******************************************************/
@@ -87,15 +81,15 @@ int initialize(){
     if (!mem)
         return 0;
 
-    return 1;
+    
 
     /* Initialize GDT at GDT_ADDR (defined in instr.h) */
     GDT_Descriptor * gdt = (GDT_Descriptor *)(mem + GDT_ADDR);
     init_gdt(gdt);
     gdtr = GDT_ADDR;
 
-    /* Initialize IDT (interrupts.h) */
-    init_idt();
+    return 1;
+    
 }
 
 
@@ -167,9 +161,10 @@ void init_gdt(GDT_Descriptor *table){
                 table[i].access = 0xF2;
                 table[i].granularity = 0xCF;
                 break;
-            default:
+            default: /* Dedicated for Thread-Local Storage (6-8) */
                 table[i].access = 0x89;
                 table[i].granularity = 0x0;
+                table[i].used = 0;
                 break;
         }
 
@@ -1239,7 +1234,17 @@ int cmp_i(cs_insn *insn){
             val2 = op2.imm;
         }
     }else if (op2.type == X86_OP_MEM){
-        val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        if (s2 == 1){
+            /* Byte*/
+            val2 = *((uint8_t *)(mem + eff_addr(op2.mem)));
+        }else if(s2 == 2){
+            /* Word*/
+            val2 = *((uint16_t *)(mem + eff_addr(op2.mem)));
+        }else{
+            /* Doubleword*/
+            val2 = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        }
+        
     }
 
     if (op1.type == X86_OP_REG){
@@ -1264,7 +1269,16 @@ int cmp_i(cs_insn *insn){
                 break;
         }
     }else if (op1.type == X86_OP_MEM){
-        val1 = *((uint32_t *)(mem+eff_addr(op1.mem)));
+        if (s1 == 1){
+            /* Byte*/
+            val1 = *((uint8_t *)(mem + eff_addr(op1.mem)));
+        }else if(s1 == 2){
+            /* Word*/
+            val1 = *((uint16_t *)(mem + eff_addr(op1.mem)));
+        }else{
+            /* Doubleword*/
+            val1 = *((uint32_t *)(mem + eff_addr(op1.mem)));
+        }
         res = val1 - val2;
     }
 
@@ -2594,7 +2608,6 @@ int int_i (cs_insn *insn){
         return -1;
     }
     return int_dispatcher(v, &eax, &ebx, &ecx, &edx, &esi, &edi, &ebp);
-
 } 
 
 /**
@@ -2726,7 +2739,7 @@ int jbe_i (cs_insn *insn){
     cs_x86_op op1 = x86.operands[0];
     uint32_t val;
 
-    if (test_Flag(CF) && test_Flag(ZF)){
+    if (test_Flag(CF) || test_Flag(ZF)){
         if(op1.type == X86_OP_REG){
             val = reg_val(op1.reg);
         }else if(op1.type == X86_OP_IMM){
@@ -3774,8 +3787,40 @@ int lsl_i (cs_insn *insn){
 int ltr_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  MOVS. Move Data from String to String.
+ *
+ *  Opcode 0xA4, 0xA5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int movs_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* ES with Segments? */
+
+    /* Obtain Operand size */
+    uint8_t s1 = op1.size;
+
+    if(s1 == 1){
+        /* MOVSB */
+        mem[edi]=mem[esi];
+    }else if(s1 == 2){
+        /* MOVSW */
+        *((uint16_t *)(mem+edi)) = *((uint16_t *)(mem+esi));
+    }else{
+        /* MOVSD */
+        *((uint32_t *)(mem+edi)) = *((uint32_t *)(mem+esi));
+    }
+    return 0;
 } 
 
 /**
@@ -5640,14 +5685,11 @@ int wait_i (cs_insn *insn){
  */
 int xchg_i (cs_insn *insn){
     eip += insn->size;
-    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
-    cs_x86_op op2 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
 
     uint8_t s1 = op1.size, s2 = op2.size;
-
-    
 
     if (s1 == 1){
         uint8_t *p1, *p2;
@@ -5786,9 +5828,65 @@ int rep_ins_i(cs_insn *insn){
     //insn.mnemonic;
 }
 
+/**
+ *  REP. Repeat Following String Operation (MOVS).
+ *
+ *  Opcode 0xF3 A4, 0xF3 A5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rep_movs_i(cs_insn *insn){
-    //const char *inss[] = { }; 
-    //insn.mnemonic;
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    /* ES with segments ?*/
+
+    /* Obtain operand size */
+    uint8_t s1 = op1.size;
+    if(s1 == 1){
+        /* MOVSB */
+        while(ecx){
+            /* Move Byte from [ESI] to [EDI] */
+            mem[edi]=mem[esi];
+            /* Decrement ECX */
+            ecx--;
+            /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
+            edi += !test_Flag(DF)?1:-1;
+            esi += !test_Flag(DF)?1:-1;
+        }
+        
+    }else if(s1 == 2){
+        /* MOVSW */
+        while(ecx){
+            /* Move Word from [ESI] to [EDI] */
+            *((uint16_t *)(mem+edi)) = *((uint16_t *)(mem+esi));
+            /* Decrement ECX */
+            ecx--;
+            /* If DF=0, ESI+=2, EDI+=2, else ESI-=2, EDI-=2 */
+            edi += !test_Flag(DF)?2:-2;
+            esi += !test_Flag(DF)?2:-2;
+        }
+        
+    }else{
+        /* MOVSD */
+        while(ecx){
+            /* Move Doubleword from [ESI] to [EDI] */
+            *((uint32_t *)(mem+edi)) = *((uint32_t *)(mem+esi));
+            /* Decrement ECX */
+            ecx--;
+            /* If DF=0, ESI+=4, EDI+=4, else ESI-=4, EDI-=4 */
+            edi += !test_Flag(DF)?4:-4;
+            esi += !test_Flag(DF)?4:-4;
+        }
+        
+    }
+    return 0;
 }
 
 int rep_outs_i(cs_insn *insn){

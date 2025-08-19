@@ -53,9 +53,8 @@ uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
    return 0;
 }
 
-
 /** 
- * Main function. Executes the i386 emulator.
+ *  Bild_main function. Executes the i386 emulator without graphic interface.
  *
  *  @param argc number of arguments (argv size).
  *  @param argv array containing pointer to args.
@@ -64,9 +63,12 @@ uint8_t contains(uint32_t arr[], size_t size, uint32_t val){
  *  @return 0 if the execution is sucessful or any other value if not.
  *
  */
-int main(int argc, char *argv[], char *envp[]){
-   /* Clear screen and move pointer to (0,0)*/
-    printf("\033[2J\033[H\033[3J"); 
+int blind_main(int argc, char *argv[], char *envp[]){
+   /* Args comprobation */
+   if (argc < 2) {
+      fprintf(stdout, "Uso: %s <archivo_elf>\n", argv[0]);
+      return 1;
+   }
 
    /* Initializes some registers and allocates memory for mem variable */
    if(!initialize())
@@ -78,7 +80,7 @@ int main(int argc, char *argv[], char *envp[]){
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
    if(read_elf_file(argc, argv, envp, &ini, &r)){
       perror("elf");
-      exit(1);
+      goto exit;
    }
 
    /* Handler for disassembling */
@@ -89,8 +91,83 @@ int main(int argc, char *argv[], char *envp[]){
    size_t count;
 
    /* Sets arch */
-   if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
-        return -1;
+   if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK){
+      perror("setarch");
+      return 1;
+   }
+   
+   /* Activate detail feature. Useful for obtaining operands and other info */
+   cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
+
+   /* Disassemble all executable data loaded into mem. From ini to r. Stores it into insn array. */
+   /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
+   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
+   if (!count){
+      printf("Failed to disassemble code\n");
+      return 1;
+   }
+
+   /* Main loop */
+         while (true){
+         /* Disassemble the current instruction. Bad alignment could have happened. */
+         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+            return -1;
+
+         /* Check interrupts ???*/
+         dispatcher(ins[0].mnemonic, &ins[0]);
+      }
+   exit:
+   free(mem);
+   return 0;
+}
+
+/** 
+ *  Interface_main function. Executes the i386 emulator with graphic interface.
+ *
+ *  @param argc number of arguments (argv size).
+ *  @param argv array containing pointer to args.
+ *  @param envp array containing pointer to environment variables.
+ *
+ *  @return 0 if the execution is sucessful or any other value if not.
+ *
+ */
+int interface_main(int argc, char *argv[], char *envp[]){
+
+   /* Args comprobation */
+   if (argc < 2) {
+      fprintf(stdout, "Uso: %s <archivo_elf>\n", argv[0]);
+      return 1;
+   }
+
+   /* Clear screen and move pointer to (0,0) */
+   printf("\033[2J\033[H\033[3J"); 
+   
+   /* Initializes some registers and allocates memory for mem variable */
+   if(!initialize())
+      return 1;
+
+   /* ini is the first executable instruction's address, r is the last */
+   uint32_t ini, r;
+
+   /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
+   if(read_elf_file(argc, argv, envp, &ini, &r)){
+      perror("elf");
+      goto exit;
+   }
+
+   /* Handler for disassembling */
+   csh handle;
+   /* insn is the pointer to instructions array, ins is the step by step instruction to execute */
+   cs_insn *insn, *ins;
+   /* Number of instructions disassembled */
+   size_t count;
+
+   /* Sets arch */
+   if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK){
+      perror("setarch");
+      return 1;
+
+   }
    
    /* Activate detail feature. Useful for obtaining operands and other info */
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
@@ -113,7 +190,7 @@ int main(int argc, char *argv[], char *envp[]){
    char **lineas = malloc(2*rows * sizeof(char *));
    if (lineas == NULL){
       perror("malloc");
-      exit(1);
+      return 1;
    }
 
    /* Allocates memory for each pointer so it can store a string. */
@@ -181,8 +258,8 @@ int main(int argc, char *argv[], char *envp[]){
              The 1 indicates to only disassemble 1 instruction.
           */
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
-            goto exit;
-
+            goto exit1;
+         move(rows);
          /* Check interrupts ???*/
          dispatcher(ins[0].mnemonic, &ins[0]);
 
@@ -193,6 +270,7 @@ int main(int argc, char *argv[], char *envp[]){
                /* If it is the first instruction, show it,
                   If it is the second or greater, let the previous one show */
                scr_c = i?i-1:i;
+               /* If EIP was found, no need to iterate untill the end, quit FOR */
                break;
             }
          }
@@ -206,8 +284,8 @@ int main(int argc, char *argv[], char *envp[]){
                The 1 indicates to only disassemble 1 instruction.
             */
             if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
-               goto exit;
-
+               goto exit1;
+            move(rows);
             /* Check interrupts ???*/
             dispatcher(ins[0].mnemonic, &ins[0]);
          }
@@ -370,26 +448,34 @@ int main(int argc, char *argv[], char *envp[]){
       old_ch = ch;
       
    }
+
    /* Tag to clean everything before exiting if something goes wrong */
-   exit:
+   exit1:
+   
    /* Free memory */
    for (int i = 0; i<rows*2; i++){
       free(lineas[i]); 
    }
+
    free(lineas);
-   cs_free(insn, count);
-   
+
+   //cs_free(insn, count);
    /* Exit interface */
    exit_interface();
 
+   exit:
    /* Free all memory (4GB on the heap) */
    free(mem);
-
    /* Set terminal to default */
    disable_raw_mode();
 
-   /* Clear screen and move pointer to (0,0)*/
+   /* Clear screen and move pointer to (0,0) */
    printf("\033[2J\033[H\033[3J"); 
    return 0;
 
+}
+
+int main(int argc, char *argv[], char *envp[]){
+   //return interface_main(argc, argv, envp);
+   return blind_main(argc, argv, envp);
 }

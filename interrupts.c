@@ -1,24 +1,30 @@
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "interrupts.h"
 #include "trad_syscall.h"
 #include "syscall.h"
 
-Interrupt idt[0xFF];
-extern Syscall32bits syscalls[452]; 
-
-/**
- * Initializes Interrupt Descriptor Table. Contains all Interrupt functions.
- * 
- * @param void none
- * 
- * @return void
- */
-void init_idt(){
-    init_int_trad();
-    idt[0x80]=int80;
-    idt[0x3]=unimplemented; /* Used by debuggers to set breakpoints - Not useful for current program */
-    idt[0x4]=unimplemented; /* Used to avoid arithmetic overflow - Deprecated - Compilers do not use it anymore */
-}
+Interrupt idt[] = {
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    int80        , unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
+    unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented
+};
+extern Syscall32bits syscalls[]; 
 
 /**
  * Gets the interrupt corresponding to v value and calls it with all 7 arguments (eax - ebp).
@@ -35,7 +41,7 @@ void init_idt(){
  * @return value returned by the interrput.
  */
 uint32_t int_dispatcher(uint8_t v, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx, uint32_t *esi, uint32_t *edi, uint32_t *ebp){
-    return idt[v](eax, ebx, ecx, edx, esi, edi, ebp);
+    return  idt[v](eax, ebx, ecx, edx, esi, edi, ebp);
 }
 
 /**
@@ -69,7 +75,6 @@ uint32_t unimplemented(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *ed
  * @return value returned by the syscall.
  */
 uint32_t int80(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx, uint32_t *esi, uint32_t *edi, uint32_t *ebp){
-    return syscalls[*eax](eax, ebx, ecx, edx, esi, edi, ebp);
+    *eax = syscalls[*eax](eax, ebx, ecx, edx, esi, edi, ebp);
+    return *eax;
 }
-
-
