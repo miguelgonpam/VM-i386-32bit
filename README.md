@@ -104,13 +104,13 @@ This process also brings cross binutils as `objdump` or `readelf`.
 
 `d` allows to delete a breakpoint with a given breakpoint number. 
 
-`c` continues the execution until it finds a breakpoint- Steps as many instructions as needed until lands into a breakpoint. 
+`c` continues the execution until it finds a breakpoint. Steps as many instructions as needed until lands into a breakpoint. 
 
-`n` similar to `c`, continues the execution until lands in immediate next instruction. Designed to avoid going into CALL instruction or JMP instruction (if program flow ever lands in the next instruction). 
+`n` is similar to `c`, continues the execution until lands in immediate next instruction. Designed to avoid going into CALL instruction or JMP instruction (if program flow ever lands in the next instruction). 
 
 `KEY_LEFT`, `KEY_RIGHT`, `4` and `6` switch **focus** between code (`KEY_LEFT` or `4`) and stack (`KEY_RIGHT` or `6`). Focus allows to perform some actions in current window. 
 
-`KEY_UP`, `8`, `KEY_DOWN` and `2` move window lines up (`KEY_UP` or `8`) or down (`KEY_DOWN` or `2`). The main idea is to be able o see the whole stack or move through code lines. 
+`KEY_UP`, `8`, `KEY_DOWN` and `2` move window lines up (`KEY_UP` or `8`) or down (`KEY_DOWN` or `2`). The main idea is to be able o see the whole stack or move through code lines. Only affects *focused* window.
 
 `f` finds an address and sets it at the top of the current *focused* window, either code or stack (if the address is found). 
 
