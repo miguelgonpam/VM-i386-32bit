@@ -54,6 +54,6 @@ typedef uint8_t byte;
 #define AT_MINSIGSTKSZ          51 /* Stack needed for signal delivery  */
 
 
-uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint32_t *last);
+uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count);
 
 #endif

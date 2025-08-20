@@ -80,10 +80,10 @@ int blind_main(int argc, char *argv[], char *envp[]){
    uint32_t res;
 
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
-   if(read_elf_file(argc, argv, envp, &ini, &r)){
-      perror("elf");
-      goto exit;
-   }
+   //if(read_elf_file(argc, argv, envp, &ini, &r)){
+   //   perror("elf");
+   //   goto exit;
+   //}
 
    /* Handler for disassembling */
    csh handle;
@@ -158,11 +158,11 @@ int interface_main(int argc, char *argv[], char *envp[]){
       return 1;
 
    /* ini is the first executable instruction's address, r is the last */
-   uint32_t ini, r;
+   uint32_t *sheader, cc = 0;
 
 
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
-   if(read_elf_file(argc, argv, envp, &ini, &r)){
+   if(read_elf_file(argc, argv, envp, &sheader, &cc)){
       perror("elf");
       goto exit;
    }
@@ -186,7 +186,23 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
    /* Disassemble all executable data loaded into mem. From ini to r. Stores it into insn array. */
    /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
-   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
+   
+   /* Array of pointer to sections instructions */
+   cs_insn **insns = calloc(cc, sizeof(cs_insn *));
+   /* Array containing accumulated number of instructions. Actual section + all instructions before */
+   int * counts = calloc(sizeof(int), cc);
+   for (int i=0; i < cc; i++){
+      uint32_t addr = sheader[2*i];
+      uint32_t siz = sheader[2*i+1];
+      uint32_t val = 0;
+      if (addr && siz)
+          val = cs_disasm(handle, &mem[addr], siz, addr, 0, &insns[i]);
+      count += ((val > 0)? val : 0);
+      counts[i] = count;  /* Obtain last instr number that belongs to this sh */
+      
+   }
+
+
    if (!count){
       printf("Failed to disassemble code\n");
       return 1;
@@ -216,12 +232,22 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
    /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or stack */
    int ch = 0, old_ch = 0, scr_c = 0, scr_s = 0, focus = 0;
-
+   uint8_t found = 0, cont = 0;
+   
    /* Initialize scr_c to EIP instr*/
-   for(int i=0; i<count;i++){
-      if (insn[i].address == eip){
-         /* Sets eip on the second visible code line if it is not the first line */
-         scr_c = (i)?i-1:i;
+   for(int i=0; i<cc;i++){
+      uint32_t end = sheader[2*i+1];
+      uint32_t ini = (!i)?0:counts[i-1];
+      
+      for (int j=0; j<end;j++){
+         if (eip == insns[i][j].address){
+            found = 1;
+            scr_c = j+ini;
+            scr_c = scr_c?scr_c-1:scr_c;
+            break;
+         }
+      }
+      if(found){
          break;
       }
    }
@@ -238,30 +264,54 @@ int interface_main(int argc, char *argv[], char *envp[]){
    while ('q' != ch){
       /* EIP index, if its negative, EIP is not visible on the current screen, due to scroll */
       int eip_ind = -1;
+      int exited = -1;
+      for (size_t i = 0; i < MIN(rows, count -scr_c+1); i++) {
+         uint32_t index = i+scr_c;
+         uint32_t sh = 0;
+         for (int j=0; j<cc;j++){ /* Iterate through section headers */
+            if(index < counts[j]){ /* If sh last instruction number is greater than index */
+               sh = j; /* Instruction's sh is previous one */
+               break;
+            }
+         }
 
-      for (size_t i = 0; i < MIN(rows, count -scr_c); i++) {
-         uint32_t addr = insn[i+scr_c].address;
+         /* Get previous section header last instruction index */
+         uint32_t prev = (!sh)?0:counts[sh-1];
+
+         uint32_t addr = insns[sh][index - prev].address;
          if (addr == eip){
             eip_ind = i;
          }
          snprintf(lineas[i*2], ADDR_TXT_S-1, "0x%08x", addr);
-         snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insn[i+scr_c].mnemonic, insn[i+scr_c].op_str);
+         snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insns[sh][index - prev].mnemonic, insns[sh][index - prev].op_str);
+         exited = i;
+      }
+
+      if (exited != rows-1){ /* No more instructions to show */
+         while(exited != rows){
+
+            snprintf(lineas[exited*2], 3, " ");
+            snprintf(lineas[exited*2+1], 3, " ");
+            exited++;
+         }
       }
       /* Draw registers, code and stack */
       draw_screen(scr_s, scr_c, lineas, rows, eip_ind);
       
+      no_print:
       
 
       /* Move pointer to last line and Gets user's option */
       move(rows);
       ch = getch();
+      
       //ch = getchar(); /* Does not allow arrows */
       
       /* Clean stdin */
       cleanv(rows-2, rows-2);
 
       /* Set stdin cursor at first line of stdin */
-      movev(rows);
+      cleanv(rows, rows);
 
       /* If user's choice is ENTER key */
       if('\n' == ch){
@@ -273,7 +323,8 @@ int interface_main(int argc, char *argv[], char *envp[]){
              we cannot know its index within insn array.
              The 1 indicates to only disassemble 1 instruction.
           */
-         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+
+         if(!cs_disasm(handle, &mem[eip], 16, eip, 1, &ins)) // If number of disasm instructions is 0.
             goto exit1;
          
 
@@ -303,12 +354,20 @@ int interface_main(int argc, char *argv[], char *envp[]){
             goto exit1;
 
          /* Find EIP and set it at the top of the screen */
-         for(int i=0; i<count;i++){
-            if (insn[i].address == eip){
-               /* If it is the first instruction, show it,
-                  If it is the second or greater, let the previous one show */
-               scr_c = i?i-1:i;
-               /* If EIP was found, no need to iterate untill the end, quit FOR */
+         found = 0;
+         for(int i=0; i<cc;i++){
+            uint32_t end = sheader[2*i+1];
+            uint32_t ini = (!i)?0:counts[i-1];
+            
+            for (int j=0; j<end;j++){
+               if (eip == insns[i][j].address){
+                  found = 1;
+                  scr_c = j+ini;
+                  scr_c = scr_c?scr_c-1:scr_c;
+                  break;
+               }
+            }
+            if(found){
                break;
             }
          }
@@ -321,7 +380,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
                we cannot know its index within insn array.
                The 1 indicates to only disassemble 1 instruction.
             */
-            if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+            if(!cs_disasm(handle, &mem[eip], 16, eip, 1, &ins)) // If number of disasm instructions is 0.
                goto exit1;
             
 
@@ -335,7 +394,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
             /* Check interrupts ???*/
             res = dispatcher(ins[0].mnemonic, &ins[0]);
-            
+
             cleanv(rows, rows);
             movev(rows);
             /* If returned from syscall, set the terminal on raw mode */
@@ -352,11 +411,20 @@ int interface_main(int argc, char *argv[], char *envp[]){
                goto exit1;
          }
          /* Find EIP and set it at the top of the screen */
-         for(int i=0; i<count;i++){
-            if (insn[i].address == eip){
-               /* If it is the first instruction, show it,
-                  If it is the second or greater, let the previous one show */
-               scr_c = i?i-1:i;
+         found = 0;
+         for(int i=0; i<cc;i++){
+            uint32_t end = sheader[2*i+1];
+            uint32_t ini = (!i)?0:counts[i-1];
+            
+            for (int j=0; j<end;j++){
+               if (eip == insns[i][j].address){
+                  found = 1;
+                  scr_c = j+ini;
+                  scr_c = scr_c?scr_c-1:scr_c;
+                  break;
+               }
+            }
+            if(found){
                break;
             }
          }
@@ -364,7 +432,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
          scr_s=0;
 
       }else if('n' == ch){   
-         if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+         if(!cs_disasm(handle, &mem[eip], 16, eip, 1, &ins)) // If number of disasm instructions is 0.
                goto exit1;
          /* Get next instruction. Designed to avoid stepping into CALL instruction. */
          uint32_t stop = eip + ins[0].size;
@@ -374,7 +442,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
                we cannot know its index within insn array.
                The 1 indicates to only disassemble 1 instruction.
             */
-            if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
+            if(!cs_disasm(handle, &mem[eip], 16, eip, 1, &ins)) // If number of disasm instructions is 0.
                goto exit1;
             
 
@@ -406,11 +474,20 @@ int interface_main(int argc, char *argv[], char *envp[]){
             
          }
          /* Find EIP and set it at the top of the screen */
-         for(int i=0; i<count;i++){
-            if (insn[i].address == eip){
-               /* If it is the first instruction, show it,
-                  If it is the second or greater, let the previous one show */
-               scr_c = i?i-1:i;
+         found = 0;
+         for(int i=0; i<cc;i++){
+            uint32_t end = sheader[2*i+1];
+            uint32_t ini = (!i)?0:counts[i-1];
+            
+            for (int j=0; j<end;j++){
+               if (eip == insns[i][j].address){
+                  found = 1;
+                  scr_c = j+ini;
+                  scr_c = scr_c?scr_c-1:scr_c;
+                  break;
+               }
+            }
+            if(found){
                break;
             }
          }
@@ -418,33 +495,59 @@ int interface_main(int argc, char *argv[], char *envp[]){
          scr_s=0;
 
       }else if (KEY_DOWN == ch || '2' == ch){
+         cleann(rows, rows);
+         movev(rows);
          /* Focus is set on Code and scr_c doesnt overflow */
-         if (focus == 0 && scr_c < count - (rows - H_REGS - 2)){
-            /* Scroll down */
-            scr_c++;
+         if (focus == 0){
+            if( scr_c+1 < count){
+               /* Scroll down */
+               scr_c++;
+            }else{
+               goto no_print;
+            }
          }
          /* Focus is set on Stack, overflow checked */
-         if (focus == 1 && scr_s+1 < (STACK_BOTTOM - (int)esp)/4 ){
-            /* Scroll down */
-            scr_s++;
+         else{
+            if( scr_s+1 < (STACK_BOTTOM - (int)esp)/4 ){
+               /* Scroll down */
+               scr_s++;
+            }else{
+               goto no_print;
+            }
          }
       }else if (KEY_UP == ch || '8' == ch){
+         cleann(rows, rows);
+         movev(rows);
          /* Focus is set on Code and scr_c doesnt underflow */
-         if (focus == 0 && scr_c > 0){
-            /* Scroll up */
-            scr_c--;
+         if (focus == 0){
+            if (scr_c > 0){
+               /* Scroll up */
+               scr_c--;
+            }else{
+               goto no_print;
+            }
          }
          /* Focus is set on Stack and scr_s doesnt underflow */
-         if (focus == 1 && scr_s > 0){
-            /* Scroll up */
-            scr_s--;
+         else{
+            if(scr_s > 0){
+               /* Scroll up */
+               scr_s--;
+            }else{
+               goto no_print;
+            }
          }
       }else if(KEY_LEFT == ch || '4' == ch){
+         cleann(rows, rows);
+         movev(rows);
          /* Switch scroll focus to Code */
          focus = 0;
+         goto no_print;
       }else if(KEY_RIGHT == ch || '6' == ch){
+         cleann(rows, rows);
+         movev(rows);
          /* Switch scroll focus to Stack */
          focus = 1;
+         goto no_print;
       }else if('b' == ch){
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -498,6 +601,10 @@ int interface_main(int argc, char *argv[], char *envp[]){
          if (focus){
             int i = 0;
             /* Find user's address and set it at the top of Stack window*/
+            if (dir < STACK_BOTTOM && dir > STACK_TOP){
+               scr_s = (int)((dir-esp)/4);
+            }
+            /*
             for (uint32_t v = esp; v < STACK_BOTTOM; v+=4){
                if (v == dir){
                   scr_s = i;
@@ -505,10 +612,22 @@ int interface_main(int argc, char *argv[], char *envp[]){
                }
                i++;
             }
+            */
          }else{
-            for (int i=0;i<count;i++){
-               if (dir == insn[i].address){
-                  scr_c = i;
+            /* Find DIR and set it at the top of the screen */
+            found = 0;
+            for(int i=0; i<cc;i++){
+               uint32_t end = (!i)?counts[i]:counts[i]-counts[i-1];
+               uint32_t ini = (!i)?0:counts[i-1];
+               
+               for (int j=0; j<end;j++){
+                  if (dir == insns[i][j].address){
+                     found = 1;
+                     scr_c = j+ini;
+                     break;
+                  }
+               }
+               if(found){
                   break;
                }
             }
@@ -585,7 +704,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
    /* Tag to clean everything before exiting if something goes wrong */
    exit1:
-   move(rows);
+
    /* Free memory */
    for (int i = 0; i<rows*2; i++){
       free(lineas[i]); 

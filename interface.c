@@ -1,4 +1,4 @@
-#include <termios.h>
+    #include <termios.h>
 #include <unistd.h>
 
 #include <stdint.h>
@@ -159,7 +159,7 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
     /* Code */
     for (int i=0; i<rows-H_REGS-5; i++){ /* 5 lines left, 2 for the code box and 3 for stdin */
-        if (i<count){
+        if (i < count){
             /* Clear line and Print code addr in blue */
             printf("\033[K│ <%s%s%s> : ", "\033[34m", lineas[i*2], "\033[0m"); 
             if(eip_ind >= 0 && eip_ind == i){
@@ -216,7 +216,7 @@ __inline void movev(int r){
 }
 
 __inline void cleann(){
-    printf("\033[C\033[K");
+    printf("\033[K");
     fflush(stdout);
 }
 

@@ -205,7 +205,7 @@ void load_stack(int argc, char *argv[], char *envp[]){
 
 }
 
-uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint32_t *last) {
+uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count) {
 
     /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
 
@@ -259,6 +259,7 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
     fseek(elf_file, ehdr.e_phoff, SEEK_SET);
     uint8_t found = 0;
     long phdrs_start = ehdr.e_phoff;
+    long shdrs_start = ehdr.e_shoff;
 
     /* Values for pushing auxv */
     ph_num = ehdr.e_phnum;
@@ -287,25 +288,31 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
             ph_addr = phdr.p_vaddr + ehdr.e_phoff;
         }
         fread(mem + phdr.p_vaddr, 1, phdr.p_filesz, elf_file);
-        *last = phdr.p_vaddr + phdr.p_filesz;
+        //*last = phdr.p_vaddr + phdr.p_filesz;
         /* No zero fill needed*/
 
         fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
         
     }
     
+    *sheader = calloc(ehdr.e_shnum*2, sizeof(uint32_t));
+    *count = 0;
     /* Iterate Section Headers */
-    fseek(elf_file, ehdr.e_shoff, SEEK_SET);
+    
     for (int i = 0; i < ehdr.e_shnum; i++) {
+        fseek(elf_file, shdrs_start + i * ehdr.e_shentsize, SEEK_SET);
         Elf32_Shdr shdr;
         fread(&shdr, 1, sizeof(shdr), elf_file);
-
         if (shdr.sh_type == SHT_PROGBITS && (shdr.sh_flags & SHF_EXECINSTR)) {
-            *ini = shdr.sh_addr;
-            break; // nos quedamos solo con el primero
+            (*sheader)[2* (*count)]   = shdr.sh_addr;
+            (*sheader)[2*(*count)+1] = shdr.sh_size;
+            //*count += shdr.sh_size;
+            //*ini = shdr.sh_addr;
+            //break; // nos quedamos solo con el primero
+            *count += 1; 
         }
+        
     }
-
     fclose(elf_file);
     fclose(log);
 
@@ -315,6 +322,6 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
     load_stack(argc, argv, envp);
 
     /* No need to free mem pointer, because it is used in the main program */
-    
+
     return 0;
 }
