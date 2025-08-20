@@ -14,6 +14,7 @@
 #define ADDR_TXT_S 15
 
 int init_interface();
+void init_raw_mode();
 void enable_raw_mode();
 void disable_raw_mode();
 void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind);
@@ -22,6 +23,8 @@ void print(char * txt);
 int getch();
 void exit_interface();
 void move(int r);
+void movev(int r);
 void cleanv(int i, int f);
+void clean();
 
 #endif

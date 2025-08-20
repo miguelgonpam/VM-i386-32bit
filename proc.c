@@ -77,6 +77,8 @@ int blind_main(int argc, char *argv[], char *envp[]){
    /* ini is the first executable instruction's address, r is the last */
    uint32_t ini, r;
 
+   uint32_t res;
+
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
    if(read_elf_file(argc, argv, envp, &ini, &r)){
       perror("elf");
@@ -114,7 +116,11 @@ int blind_main(int argc, char *argv[], char *envp[]){
          goto exit;
 
       /* Check interrupts ???*/
-      dispatcher(ins[0].mnemonic, &ins[0]);
+      res = dispatcher(ins[0].mnemonic, &ins[0]);
+
+      if (res == 0xdeadbeef){
+         goto exit;
+      }
 
       /* Free ins */
       cs_free(ins, 1);
@@ -153,18 +159,19 @@ int interface_main(int argc, char *argv[], char *envp[]){
    /* ini is the first executable instruction's address, r is the last */
    uint32_t ini, r;
 
+
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
    if(read_elf_file(argc, argv, envp, &ini, &r)){
       perror("elf");
       goto exit;
    }
-
+   
    /* Handler for disassembling */
    csh handle;
    /* insn is the pointer to instructions array, ins is the step by step instruction to execute */
    cs_insn *insn, *ins;
    /* Number of instructions disassembled */
-   size_t count;
+   size_t count = 0;
 
    /* Sets arch */
    if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK){
@@ -183,12 +190,13 @@ int interface_main(int argc, char *argv[], char *envp[]){
       printf("Failed to disassemble code\n");
       return 1;
    }
+   
 
    /* Initializes ncurses interaface */
    init_interface();
 
    /* getchar() does not need ENTER anymore */
-   enable_raw_mode();
+   init_raw_mode();
 
    /* Allocates memory for pointer array. Its used to store the code lines to print. i.e "<0x08049752>:pop esi" */
    char **lineas = malloc(2*rows * sizeof(char *));
@@ -222,6 +230,9 @@ int interface_main(int argc, char *argv[], char *envp[]){
    /* Initialize breakpoints counter */
    uint8_t brk_ctr = 0;
    
+   /* Result of a instruction's execution */
+   uint32_t res = 0;
+
    /* While q is not pressed, what would quit the program */
    while ('q' != ch){
       /* EIP index, if its negative, EIP is not visible on the current screen, due to scroll */
@@ -246,10 +257,10 @@ int interface_main(int argc, char *argv[], char *envp[]){
       //ch = getchar(); /* Does not allow arrows */
       
       /* Clean stdin */
-      cleanv(rows-2, rows);
+      cleanv(rows-2, rows-2);
 
       /* Set stdin cursor at first line of stdin */
-      move(rows);
+      movev(rows);
 
       /* If user's choice is ENTER key */
       if('\n' == ch){
@@ -263,12 +274,31 @@ int interface_main(int argc, char *argv[], char *envp[]){
           */
          if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
             goto exit1;
-         move(rows);
+         
+
+         /* If returned from syscall, set the terminal on raw mode */
+         if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+            disable_raw_mode();
+         }
+
+         movev(rows);
+
          /* Check interrupts ???*/
-         dispatcher(ins[0].mnemonic, &ins[0]);
+         res = dispatcher(ins[0].mnemonic, &ins[0]);
+
+         /* If returned from syscall, set the terminal on raw mode */
+         if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+            enable_raw_mode();
+         }
+
          /* Free ins */
          cs_free(ins, 1);
          ins = NULL;
+
+         /* Check if ins is syscall(1) (exit), to free memory before exiting */
+         if(0xdeadbeef == res)
+            goto exit1;
+
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
             if (insn[i].address == eip){
@@ -290,12 +320,30 @@ int interface_main(int argc, char *argv[], char *envp[]){
             */
             if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
                goto exit1;
-            move(rows);
+            
+
+            /* If returned from syscall, set the terminal on raw mode */
+            if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+               disable_raw_mode();
+            }
+
+            movev(rows);
+
             /* Check interrupts ???*/
-            dispatcher(ins[0].mnemonic, &ins[0]);
+            res = dispatcher(ins[0].mnemonic, &ins[0]);
+
+            /* If returned from syscall, set the terminal on raw mode */
+            if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+               enable_raw_mode();
+            }
+            
             /* Free ins */
             cs_free(ins, 1);
             ins = NULL;
+
+            /* Check if ins is syscall(1) (exit), to free memory before exiting */
+            if(0xdeadbeef == res)
+               goto exit1;
          }
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
@@ -322,12 +370,32 @@ int interface_main(int argc, char *argv[], char *envp[]){
             */
             if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
                goto exit1;
-            move(rows);
+            
+
+            /* If syscall, set the terminal on normal mode */
+            if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+               disable_raw_mode();
+            }
+
+            movev(rows);
+
             /* Check interrupts ???*/
-            dispatcher(ins[0].mnemonic, &ins[0]);
+            res = dispatcher(ins[0].mnemonic, &ins[0]);
+
+            /* If returned from syscall, set the terminal on raw mode */
+            if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
+               enable_raw_mode();
+            }
+
             /* Free ins */
             cs_free(ins, 1);
             ins = NULL;
+
+            /* Check if ins is syscall(1) (exit), to free memory before exiting */
+            if(0xdeadbeef == res)
+               goto exit1;
+
+            
          }
          /* Find EIP and set it at the top of the screen */
          for(int i=0; i<count;i++){
@@ -389,10 +457,10 @@ int interface_main(int argc, char *argv[], char *envp[]){
          
          /* Clean stdin zone */
          cleanv(rows-2, rows);
-         move(rows-2);
+         movev(rows-2);
 
          /* Prints breakpont indexes from 1 to MAX_BRK*/
-         printf(" Created breakpoint %u at 0x%08x", brk_ctr+1, dir);
+         printf("Created breakpoint %u at 0x%08x", brk_ctr+1, dir);
 
          /* Increment breakpoint counter */
          brk_ctr++;
@@ -456,7 +524,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
          char txt[25];
          snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
          cleanv(rows-2, rows);
-         move(rows-2);
+         movev(rows-2);
          printf("%s",txt);
       }else if('t' == ch){
          char str[MAX_STR];
@@ -474,7 +542,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
          }
          char txt[25];
          cleanv(rows-2, rows);
-         move(rows-2);
+         movev(rows-2);
          printf("0x%08x : %s",dir, mem+dir);
       }else if('d' == ch){
          char str[MAX_STR];
@@ -500,7 +568,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
          /* Clear stdin and move pointer */
          cleanv(rows-2, rows);
-         move(rows-2);
+         movev(rows-2);
       }
       /* Store old user's choice in case ENTER is pressed */
       old_ch = ch;
@@ -528,7 +596,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
    disable_raw_mode();
 
    /* Clear screen and move pointer to (0,0) */
-   printf("\033[2J\033[H\033[3J"); 
+   //printf("\033[2J\033[H\033[3J"); 
    return 0;
 
 }

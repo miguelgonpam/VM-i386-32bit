@@ -3813,12 +3813,21 @@ int movs_i (cs_insn *insn){
     if(s1 == 1){
         /* MOVSB */
         mem[edi]=mem[esi];
+        /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
+        edi += !test_Flag(DF)?1:-1;
+        esi += !test_Flag(DF)?1:-1;
     }else if(s1 == 2){
         /* MOVSW */
         *((uint16_t *)(mem+edi)) = *((uint16_t *)(mem+esi));
+        /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
+        edi += !test_Flag(DF)?2:-2;
+        esi += !test_Flag(DF)?2:-2;
     }else{
         /* MOVSD */
         *((uint32_t *)(mem+edi)) = *((uint32_t *)(mem+esi));
+        /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
+        edi += !test_Flag(DF)?4:-4;
+        esi += !test_Flag(DF)?4:-4;
     }
     return 0;
 } 

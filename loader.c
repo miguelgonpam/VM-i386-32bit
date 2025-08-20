@@ -293,8 +293,7 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
         fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
         
     }
-
-
+    
     /* Iterate Section Headers */
     fseek(elf_file, ehdr.e_shoff, SEEK_SET);
     for (int i = 0; i < ehdr.e_shnum; i++) {
@@ -309,6 +308,7 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t *ini, uint
 
     fclose(elf_file);
     fclose(log);
+
     /* EIP Initialization */
     eip = ehdr.e_entry;
 

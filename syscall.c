@@ -690,7 +690,8 @@ uint32_t do_execve(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
  * [[noreturn]] void _exit(int status);
  */
 uint32_t do_exit(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
-    return (uint32_t)syscall(SYS_exit);
+    //return (uint32_t)syscall(SYS_exit); /* That would exit without freeing memory */
+    return 0xdeadbeef; /* This value is checked as return of execution. Frees memory and exits */
 }
 
 

@@ -21,8 +21,14 @@ char *lines, *code, *stack;
 
 struct termios oldt, newt;
 
-void enable_raw_mode() {
+void init_raw_mode(){
     tcgetattr(STDIN_FILENO, &oldt);       // Guarda la config actual
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+}
+
+void enable_raw_mode() {
     newt = oldt;
     newt.c_lflag &= ~(ICANON);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
@@ -30,6 +36,7 @@ void enable_raw_mode() {
 
 void disable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // Restaura config
+    //clean();
 }
 
 void get_lines(size_t size, char * str){
@@ -148,7 +155,7 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
     old_eflags = eflags;
 
     /* Code and Stack Box Top Line*/
-    printf("┌%*s┐┌%*s┐\n", (cols/3)*2-2, code, cols/3-2, stack);
+    printf("┌%*s┐┌%*s┐\n", w_code-2, code, w_stack-2, stack);
 
     /* Code */
     for (int i=0; i<rows-H_REGS-5; i++){ /* 5 lines left, 2 for the code box and 3 for stdin */
@@ -199,6 +206,10 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
 
 __inline void move(int r){
+    printf("\033[%d;1H", r);
+}
+
+__inline void movev(int r){
     printf("\033[%d;1H", r);
 }
 
