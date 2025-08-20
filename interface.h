@@ -26,5 +26,6 @@ void move(int r);
 void movev(int r);
 void cleanv(int i, int f);
 void clean();
+void cleann();
 
 #endif

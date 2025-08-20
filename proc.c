@@ -111,6 +111,7 @@ int blind_main(int argc, char *argv[], char *envp[]){
 
    /* Main loop */
    while (true){
+
       /* Disassemble the current instruction. Bad alignment could have happened. */
       if(!cs_disasm(handle, &mem[eip], r-eip, eip, 1, &ins)) // If number of disasm instructions is 0.
          goto exit;
@@ -281,6 +282,8 @@ int interface_main(int argc, char *argv[], char *envp[]){
             disable_raw_mode();
          }
 
+         
+         cleann(rows, rows);
          movev(rows);
 
          /* Check interrupts ???*/
@@ -327,11 +330,14 @@ int interface_main(int argc, char *argv[], char *envp[]){
                disable_raw_mode();
             }
 
-            movev(rows);
+            
+            
 
             /* Check interrupts ???*/
             res = dispatcher(ins[0].mnemonic, &ins[0]);
-
+            
+            cleanv(rows, rows);
+            movev(rows);
             /* If returned from syscall, set the terminal on raw mode */
             if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
                enable_raw_mode();
@@ -377,6 +383,8 @@ int interface_main(int argc, char *argv[], char *envp[]){
                disable_raw_mode();
             }
 
+            
+            cleanv(rows, rows);
             movev(rows);
 
             /* Check interrupts ???*/
@@ -525,7 +533,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
          snprintf(txt, 24, "0x%08x : 0x%08x", dir, *((uint32_t *)(mem +dir)));
          cleanv(rows-2, rows);
          movev(rows-2);
-         printf("%s",txt);
+         printf(" %s",txt);
       }else if('t' == ch){
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -543,7 +551,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
          char txt[25];
          cleanv(rows-2, rows);
          movev(rows-2);
-         printf("0x%08x : %s",dir, mem+dir);
+         printf(" 0x%08x : %s",dir, mem+dir);
       }else if('d' == ch){
          char str[MAX_STR];
          int res = 0, c = 0;
@@ -577,7 +585,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
    /* Tag to clean everything before exiting if something goes wrong */
    exit1:
-   
+   move(rows);
    /* Free memory */
    for (int i = 0; i<rows*2; i++){
       free(lineas[i]); 

@@ -207,25 +207,35 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
 __inline void move(int r){
     printf("\033[%d;1H", r);
+    fflush(stdout);
 }
 
 __inline void movev(int r){
     printf("\033[%d;1H", r);
+    fflush(stdout);
+}
+
+__inline void cleann(){
+    printf("\033[C\033[K");
+    fflush(stdout);
 }
 
 __inline void clean(){
     printf("\033[K\n");
+    fflush(stdout);
 }
 
 void cleanv(int i, int f){
     for(int j=i; j<=f; j++){
         printf("\033[%d;1H\033[K", j);
     }
+    fflush(stdout);
 }
 
 void print(char * txt){
     move(rows-1);
     printf("%s", txt);
+    
 
 }
 
