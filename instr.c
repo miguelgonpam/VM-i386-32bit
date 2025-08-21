@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <capstone/capstone.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "instr.h"
 #include "flags.h"
 #include "interrupts.h"
@@ -84,11 +86,11 @@ int initialize(){
 
     /* Initialize GDT at GDT_ADDR (defined in instr.h) */
     GDT_Descriptor * gdt = (GDT_Descriptor *)(mem + GDT_ADDR);
-    //init_gdt(gdt);
-    //gdtr.base = GDT_ADDR;
-    //gdtr.limit = GDT_ENTRIES * sizeof(GDT_Descriptor);
-    //idtr.base = GDT_ADDR;
-    //idtr.limit = gdtr.limit;
+    init_gdt(gdt);
+    gdtr.base = GDT_ADDR;
+    gdtr.limit = GDT_ENTRIES * sizeof(GDT_Descriptor);
+    idtr.base = GDT_ADDR;
+    idtr.limit = gdtr.limit;
 
     return 1;
     
@@ -2526,6 +2528,39 @@ int imul_i (cs_insn *insn){
 
 int in_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint16_t port;
+
+    if (op2.type == X86_OP_IMM){
+        port = op2.imm;
+    }else{ /* DX */
+        port = *((uint16_t*)regs[op2.reg]);
+    }
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+
+    if (s1 == 1){
+        res = pread(fd, (uint8_t *)&eax, 1, port);
+    }else if(s1 == 2){
+        res = pread(fd, (uint16_t *)&eax, 2, port);
+    }else{
+        res = pread(fd, &eax, 4, port);
+    }
+
+    close(fd);
+
+    return (res!=s1); 
 }
 
 
@@ -3767,6 +3802,45 @@ int leave_i (cs_insn *insn){
 } 
 
 /**
+ *  ENTER. Make Stack Frame for Procedure Parameters.
+ *
+ *  Opcode 0xC8.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int enter_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t level = op2.imm;
+
+    esp -= 4;
+    write32(esp, ebp); /* Push EBP */
+
+    uint32_t frame = esp;
+
+    if (level){
+        for (int i=1; i<level; i++){
+            ebp -= 4;
+            esp -= 4;
+            write32(esp, ebp); /* Push EBP */
+        }
+        esp -= 4;
+        write32(esp, frame); /* Push EBP */
+    }
+    ebp = frame;
+    esp -= zero_extend16_32(op1.imm);
+
+    return 0;
+}
+
+/**
  * Deprecated. 
  */
 int les_i (cs_insn *insn){
@@ -4231,6 +4305,39 @@ int not_i (cs_insn *insn){
 
 int out_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint16_t port;
+
+    if (op1.type == X86_OP_IMM){
+        port = op1.imm;
+    }else{ /* DX */
+        port = *((uint16_t*)regs[op1.reg]);
+    }
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+
+    if (s2 == 1){
+        res = pwrite(fd, (uint8_t *)&eax, 1, port);
+    }else if(s2 == 2){
+        res = pwrite(fd, (uint16_t *)&eax, 2, port);
+    }else{
+        res = pwrite(fd, &eax, 4, port);
+    }
+
+    close(fd);
+
+    return (res!=s2); 
 } 
 int outs_i (cs_insn *insn){
     eip += insn->size;

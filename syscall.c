@@ -77,7 +77,7 @@ typedef struct stat32 {
 
 
 extern uint8_t * mem;
-extern uint32_t gdtr;
+extern GDTR gdtr;
 
 
 
@@ -1956,7 +1956,7 @@ uint32_t do_sched_getaffinity(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint
  */
 uint32_t do_set_thread_area(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
     /* Get address of the GDT table using the GDTR register */
-    GDT_Descriptor * gdt = (GDT_Descriptor *)(mem+ gdtr);
+    GDT_Descriptor * gdt = (GDT_Descriptor *)(mem+ gdtr.base);
     struct user_desc32 *u = (struct user_desc32*)(mem+ *arg1);
     uint8_t index;
     if (u->entry_number != -1){
