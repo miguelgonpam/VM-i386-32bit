@@ -63,18 +63,17 @@ int init_interface(){
     if(spaces)spaces--;
     if (spaces > 15)spaces=10;
 
-    /* Alloc memory for drawing the boxes */
-    lines = calloc(3, cols-1);
-    code = calloc(3,(cols/3)*2-1);
-    stack = calloc(3, (cols/3));
-    get_lines(cols-2, lines);
-
     /* Obtain code and stack boxes width */
-    //w_code = (cols/3)*2;
-    //w_stack = cols - w_code;
-
     w_code = cols-W_STACK;
     w_stack = W_STACK;
+
+    /* Alloc memory for drawing the boxes */
+    lines = calloc(3, cols-1);
+    code = calloc(3,w_code-1);
+    stack = calloc(3, w_stack-1);
+    get_lines(cols-2, lines);
+
+    
 
     /* Fill code and stack strings with box lines */
     get_lines(w_code-2, code);

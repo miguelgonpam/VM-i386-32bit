@@ -22,6 +22,10 @@ typedef struct{
     uint8_t used;
 }GDT_Descriptor;
 
+typedef struct{
+    uint16_t limit;
+    uint32_t base;
+}GDTR;
 
 
 int initialize();

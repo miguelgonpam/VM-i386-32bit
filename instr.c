@@ -12,7 +12,8 @@
 /******************************************************/
 typedef int(*Instruction)(cs_insn *insn);
 uint8_t * mem;
-uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0, gdtr = 0; 
+uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0; 
+GDTR gdtr, idtr;
 extern uint32_t eflags;
 extern int rows, cols;
 
@@ -81,12 +82,13 @@ int initialize(){
     if (!mem)
         return 0;
 
-    
-
     /* Initialize GDT at GDT_ADDR (defined in instr.h) */
     GDT_Descriptor * gdt = (GDT_Descriptor *)(mem + GDT_ADDR);
-    init_gdt(gdt);
-    gdtr = GDT_ADDR;
+    //init_gdt(gdt);
+    //gdtr.base = GDT_ADDR;
+    //gdtr.limit = GDT_ENTRIES * sizeof(GDT_Descriptor);
+    //idtr.base = GDT_ADDR;
+    //idtr.limit = gdtr.limit;
 
     return 1;
     
@@ -184,7 +186,7 @@ uint32_t get_gdt_base(uint16_t selector){
     /* Avoid overflow */
     n %= GDT_ENTRIES;
     /* Obtain descriptor */
-    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr + n*sizeof(GDT_Descriptor));
+    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr.base + n*sizeof(GDT_Descriptor));
     /* Build base from 3 parts of the base */
     uint32_t base = descriptor->base_low | (descriptor->base_mid << 16) | (descriptor->base_high << 24);
     return base;
@@ -203,7 +205,7 @@ uint32_t get_gdt_limit(uint16_t selector){
     /* Avoid overflow */
     n %= GDT_ENTRIES;
     /* Obtain descriptor */
-    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr + n*sizeof(GDT_Descriptor));
+    GDT_Descriptor *descriptor = (GDT_Descriptor *)(mem + gdtr.base  + n*sizeof(GDT_Descriptor));
     
     return descriptor->limit_low;
 }
@@ -3651,7 +3653,7 @@ int lahf_i (cs_insn *insn){
  *
  *  No exceptions.
  *
- *  No flags affected.
+ *  ZF as described.
  *
  *  @param insn instruction struct that stores all the information.
  */
@@ -3660,6 +3662,29 @@ int lar_i (cs_insn *insn){
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if (s1 == 2){
+        uint16_t val;
+        if (op2.type == X86_OP_REG){
+            val = *((uint16_t *)regs[op2.reg]);
+        }else{
+            val = *((uint16_t *)(mem + eff_addr(op2.mem)));
+        }
+
+        *((uint16_t*)regs[op1.reg]) = val & 0xFF00;
+    }else{
+        uint32_t val;
+        if (op2.type == X86_OP_REG){
+            val = *((uint32_t *)regs[op2.reg]);
+        }else{
+            val = *((uint32_t *)(mem + eff_addr(op2.mem)));
+        }
+
+        *((uint32_t*)regs[op1.reg]) = val & 0x00FFFF00;
+    }
+    set_Flag(ZF);
 
     return 0;
 } 
@@ -3741,21 +3766,69 @@ int leave_i (cs_insn *insn){
     return 0;
 } 
 
-
+/**
+ * Deprecated. 
+ */
 int les_i (cs_insn *insn){
-    eip += insn->size;
+    
 } 
+
+/**
+ * Deprecated. 
+ */
 int lfs_i (cs_insn *insn){
+    
+}
+
+/**
+ * Deprecated. 
+ */
+int lgs_i (cs_insn *insn){
+    
+} 
+
+/**
+ * Deprecated. 
+ */
+int lsl_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ * Deprecated. 
+ */
+int ltr_i (cs_insn *insn){
+    eip += insn->size;
+} 
+
+
 int lgdt_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t * p = (uint16_t *)(mem + eff_addr(op1.mem));
+
+    gdtr.limit = *(p);
+    p++; /* Move the pointer 2 bytes forward */
+    gdtr.base = *((uint32_t *)p);
+
+    return 0;
 } 
-int lgs_i (cs_insn *insn){
-    eip += insn->size;
-} 
+
+
 int lidt_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t * p = (uint16_t *)(mem + eff_addr(op1.mem));
+
+    idtr.limit = *(p);
+    p++; /* Move the pointer 2 bytes forward */
+    idtr.base = *((uint32_t *)p);
+
+    return 0;
 } 
 int lldt_i (cs_insn *insn){
     eip += insn->size;
@@ -3766,27 +3839,142 @@ int lmsw_i (cs_insn *insn){
 int lods_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  LOOPZ. Loop Control with ECX counter.
+ *
+ *  Opcode 0xE2.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int loop_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    ecx--;
+    if (!ecx){
+        if (op1.size == 1){
+            eip = (uint32_t)((int32_t)eip+(int32_t)sign_extend8_32(op1.imm));
+        }else if (op1.size == 4){
+            eip = op1.imm;
+        }
+    }
+    return 0;
 } 
+
+/**
+ *  LOOPE. Loop Control with ECX counter and Equal.
+ *
+ *  Opcode 0xE1.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int loope_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    ecx--;
+    if (!ecx && test_Flag(ZF)){
+        if (op1.size == 1){
+            eip = (uint32_t)((int32_t)eip+(int32_t)sign_extend8_32(op1.imm));
+        }else if (op1.size == 4){
+            eip = op1.imm;
+        }
+    }
+    return 0;
 } 
+
+/**
+ *  LOOPNE. Loop Control with ECX counter and not Equal.
+ *
+ *  Opcode 0xE0.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int loopne_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    ecx--;
+    if (!ecx && !test_Flag(ZF)){
+        if (op1.size == 1){
+            eip = (uint32_t)((int32_t)eip+(int32_t)sign_extend8_32(op1.imm));
+        }else if (op1.size == 4){
+            eip = op1.imm;
+        }
+    }
+    return 0;
 } 
+
+/**
+ *  LOOPNZ. Loop Control with ECX counter and not Zero.
+ *
+ *  Opcode 0xE0.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int loopnz_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    ecx--;
+    if (!ecx && !test_Flag(ZF)){
+        if (op1.size == 1){
+            eip = (uint32_t)((int32_t)eip+(int32_t)sign_extend8_32(op1.imm));
+        }else if (op1.size == 4){
+            eip = op1.imm;
+        }
+    }
+    return 0;
 } 
+
+/**
+ *  LOOPZ. Loop Control with ECX counter and Zero.
+ *
+ *  Opcode 0xE1.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int loopz_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    ecx--;
+    if (!ecx && test_Flag(ZF)){
+        if (op1.size == 1){
+            eip = (uint32_t)((int32_t)eip+(int32_t)sign_extend8_32(op1.imm));
+        }else if (op1.size == 4){
+            eip = op1.imm;
+        }
+    }
+    return 0;
 } 
-int lsl_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int ltr_i (cs_insn *insn){
-    eip += insn->size;
-} 
+
 
 /**
  *  MOVS. Move Data from String to String.
@@ -4047,19 +4235,241 @@ int out_i (cs_insn *insn){
 int outs_i (cs_insn *insn){
     eip += insn->size;
 } 
+
+/**
+ *  POPA. Pop all General Registers (16b).
+ *
+ *  Opcode 0x61.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int popa_i (cs_insn *insn){
     eip += insn->size;
-} 
-int popf_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int pusha_i (cs_insn *insn){
-    eip += insn->size;
-} 
-int pushf_i (cs_insn *insn){
-    eip += insn->size;
+    *((uint16_t*)&edi)=read16(esp); /* Pop DI */
+    esp+=2;
+    *((uint16_t*)&esi)=read16(esp); /* Pop SI*/
+    esp+=2;
+    *((uint16_t*)&ebp)=read16(esp); /* Pop BP*/
+    esp+=2;
+
+    esp+=2;                         /* throwaway */
+
+    *((uint16_t*)&ebx)=read16(esp); /* Pop BX */
+    esp+=2;
+    *((uint16_t*)&edx)=read16(esp); /* Pop DX */
+    esp+=2;
+    *((uint16_t*)&ecx)=read16(esp); /* Pop CX */
+    esp+=2;
+    *((uint16_t*)&eax)=read16(esp); /* Pop AX */
+    esp+=2;
+
+    return 0;
 } 
 
+/**
+ *  POPAD. Pop all General Registers (32b).
+ *
+ *  Opcode 0x61.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int popad_i (cs_insn *insn){
+    eip += insn->size;
+
+    edi = read32(esp); /* Pop EDI */
+    esp += 4;
+    esi = read32(esp); /* Pop ESI */
+    esp += 4;
+    ebp = read32(esp); /* Pop EBP */
+    esp += 4;
+
+    esp += 4;          /* throwaway */
+
+    ebx = read32(esp); /* Pop EBX */
+    esp+=4;
+    edx = read32(esp); /* Pop EDX */
+    esp+=4;
+    ecx = read32(esp); /* Pop ECX */
+    esp+=4;
+    eax = read32(esp); /* Pop EAX */
+    esp+=4;
+
+    return 0;
+}
+
+/**
+ *  POPF. Pop Stack top Into Flags Register (16b).
+ *
+ *  Opcode 0x9D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  All flags except VM and RF.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int popf_i (cs_insn *insn){
+    eip += insn->size;
+
+    *((uint16_t *)&eflags)=read16(esp);
+    esp += 2;
+
+    return 0;
+} 
+
+/**
+ *  POPFD. Pop Stack top Into EFlags Register (32b).
+ *
+ *  Opcode 0x9D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  All flags except VM and RF.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int popfd_i (cs_insn *insn){
+    eip += insn->size;
+
+    *((uint16_t *)&eflags)=read32(esp) & 0xFFFF; /* Instr should not affect bits 16 and 17 of EFLAGS */
+    esp += 4;
+
+    return 0;
+} 
+
+/**
+ *  PUSHA. Psuh all General Registers (16b).
+ *
+ *  Opcode 0x60.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int pusha_i (cs_insn *insn){
+    eip += insn->size;
+    
+    uint16_t temp = (uint16_t)esp;
+
+    esp-=2;
+    write16(esp, (uint16_t)eax); /* Push AX */
+    esp-=2;
+    write16(esp, (uint16_t)ecx); /* Push CX */
+    esp-=2;
+    write16(esp, (uint16_t)edx); /* Push DX */
+    esp-=2;
+    write16(esp, (uint16_t)ebx); /* Push BX */
+    esp-=2;
+    write16(esp, (uint16_t)temp); /* Push SP */
+    esp-=2;
+    write16(esp, (uint16_t)ebp); /* Push BP */
+    esp-=2;
+    write16(esp, (uint16_t)esi); /* Push SI */
+    esp-=2;
+    write16(esp, (uint16_t)edi); /* Push DI */
+
+    return 0;
+
+} 
+
+/**
+ *  PUSHAD. Push all General Registers (32b).
+ *
+ *  Opcode 0x60.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int pushad_i (cs_insn *insn){
+    eip += insn->size;
+
+    uint32_t temp = esp;
+
+    esp-=4;
+    write32(esp, eax); /* Push AX */
+    esp-=4;
+    write32(esp, ecx); /* Push CX */
+    esp-=4;
+    write32(esp, edx); /* Push DX */
+    esp-=4;
+    write32(esp, ebx); /* Push BX */
+    esp-=4;
+    write32(esp, temp); /* Push SP */
+    esp-=4;
+    write32(esp, ebp); /* Push BP */
+    esp-=4;
+    write32(esp, esi); /* Push SI */
+    esp-=4;
+    write32(esp, edi); /* Push DI */
+
+    return 0;
+} 
+
+/**
+ *  PUSHF. Push Flags Register onto the top of the stack (32b).
+ *
+ *  Opcode 0x9C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  None.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int pushf_i (cs_insn *insn){
+    eip += insn->size;
+
+    esp -= 2;
+    write16(esp, (uint16_t)(eflags & 0xFFFF));
+
+    return 0;
+} 
+
+/**
+ *  PUSHFD. Push EFlags Register onto the top of the stack (32b).
+ *
+ *  Opcode 0x9C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  None.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int pushfd_i (cs_insn *insn){
+    eip += insn->size;
+
+    esp -= 4;
+    write32(esp, eflags);
+
+    return 0;
+} 
+
+
+/**
+ *  RCL. Rotate Left with Carry Flag.
+ *
+ *  Opcode 0xD0 /2, 0xD1 /2, 0xD2 /2, 0xD3 /2, 0xC0 /2, 0xC1 /2.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF only for single rotates; OF is undefined for multi-bit rotates; CF as described above
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rcl_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4106,6 +4516,17 @@ int rcl_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  RCR. Rotate Right with Carry Flag.
+ *
+ *  Opcode 0xD0 /3, 0xD1 /3, 0xD2 /3, 0xD3 /3, 0xC0 /3, 0xC1 /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF only for single rotates; OF is undefined for multi-bit rotates; CF as described above
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rcr_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4151,6 +4572,17 @@ int rcr_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  ROL. Rotate Left..
+ *
+ *  Opcode 0xD0 /0, 0xD1 /0, 0xD2 /0, 0xD3 /0, 0xC0 /0, 0xC1 /0.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF only for single rotates; OF is undefined for multi-bit rotates; CF as described above
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rol_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4193,6 +4625,17 @@ int rol_i (cs_insn *insn){
     return 0;
 }
 
+/**
+ *  ROR. Rotate Right.
+ *
+ *  Opcode 0xD0 /1, 0xD1 /1, 0xD2 /1, 0xD3 /1, 0xC0 /1, 0xC1 /1.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF only for single rotates; OF is undefined for multi-bit rotates; CF as described above
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int ror_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4234,9 +4677,36 @@ int ror_i (cs_insn *insn){
     }
     return 0;
 } 
+/**
+ *  SAHF. Store AH into Flags.
+ *
+ *  Opcode 0x9E.
+ *
+ *  No exceptions.
+ *
+ *  SF, ZF, AF, PF, and CF as described.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sahf_i (cs_insn *insn){
     eip += insn->size;
+    uint8_t * ah = ((uint8_t*)&eax)+1;
+    *((uint8_t *)&eflags) = * ah;
+
+    return 0;
 } 
+
+/**
+ *  SBB. Integer Subtraction with BorrowStore AH into Flags.
+ *
+ *  Opcode 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x80 /3, 0x81 /3, 0x83 /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int sbb_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4308,8 +4778,51 @@ int sbb_i (cs_insn *insn){
 
     
 } 
+
+/**
+ *  SCAS. Compare String Data.
+ *
+ *  Opcode 0xAE, 0xAF.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, PF, and CF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int scas_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    /* ES Segment for EDI addressing? Flat arch.*/
+
+    uint8_t s1 = op1.size;
+    uint32_t o1, o2, res;
+
+    if(s1 == 1){
+        o1 = *((uint8_t *)&eax); /* AL */
+        o2 = (uint8_t)mem[edi];  /* [EDI] */
+        res = o1-o2;
+    }else if(s1 == 2){
+        o1 = *((uint16_t *)&eax); /* AL */
+        o2 = *((uint16_t *)(mem+edi)); /* [EDI] */
+        res = o1-o2;
+    }else{ /* s1 == 4 */
+        o1 = eax;
+        o2 = *((uint32_t *)(mem+edi)); /* [EDI] */
+        res = o1-o2;
+    }
+
+    /* Flags as described on Appendix C */
+    (o1 < o2)?set_Flag(CF):clear_Flag(CF);
+    overflow(o1, o2, res, s1*8)?set_Flag(OF):clear_Flag(OF);
+    sign(res, s1*8)?set_Flag(SF):clear_Flag(SF);
+    (!res)?set_Flag(ZF):clear_Flag(ZF);
+    adjust(o1, o2, res)?set_Flag(AF):clear_Flag(AF);
+    parity(res)?set_Flag(PF):clear_Flag(PF);
+
+    return 0;
 }
 
 /**

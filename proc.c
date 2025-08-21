@@ -75,15 +75,15 @@ int blind_main(int argc, char *argv[], char *envp[]){
       return 1;
 
    /* ini is the first executable instruction's address, r is the last */
-   uint32_t ini, r;
+   uint32_t *ini, r;
 
    uint32_t res;
 
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
-   //if(read_elf_file(argc, argv, envp, &ini, &r)){
-   //   perror("elf");
-   //   goto exit;
-   //}
+   if(read_elf_file(argc, argv, envp, &ini, &r)){
+      perror("elf");
+      goto exit;
+   }
 
    /* Handler for disassembling */
    csh handle;
@@ -103,11 +103,11 @@ int blind_main(int argc, char *argv[], char *envp[]){
 
    /* Disassemble all executable data loaded into mem. From ini to r. Stores it into insn array. */
    /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
-   count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
-   if (!count){
-      printf("Failed to disassemble code\n");
-      return 1;
-   }
+   //count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
+   //if (!count){
+   //   printf("Failed to disassemble code\n");
+   //   return 1;
+   //}
 
    /* Main loop */
    while (true){
@@ -191,6 +191,9 @@ int interface_main(int argc, char *argv[], char *envp[]){
    cs_insn **insns = calloc(cc, sizeof(cs_insn *));
    /* Array containing accumulated number of instructions. Actual section + all instructions before */
    int * counts = calloc(sizeof(int), cc);
+
+   
+
    for (int i=0; i < cc; i++){
       uint32_t addr = sheader[2*i];
       uint32_t siz = sheader[2*i+1];
@@ -202,6 +205,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
       
    }
 
+   
 
    if (!count){
       printf("Failed to disassemble code\n");
@@ -212,16 +216,18 @@ int interface_main(int argc, char *argv[], char *envp[]){
    /* Initializes ncurses interaface */
    init_interface();
 
+   
+
    /* getchar() does not need ENTER anymore */
    init_raw_mode();
-
+   
    /* Allocates memory for pointer array. Its used to store the code lines to print. i.e "<0x08049752>:pop esi" */
    char **lineas = malloc(2*rows * sizeof(char *));
    if (lineas == NULL){
       perror("malloc");
       return 1;
    }
-
+   
    /* Allocates memory for each pointer so it can store a string. */
    for (int i = 0; i<rows; i++){
       /* Only for address */
@@ -229,7 +235,7 @@ int interface_main(int argc, char *argv[], char *envp[]){
       lineas[i*2+1]=malloc(MAX_STR);
 
    }
-
+   
    /* Char to get users char and scr_c to scroll instructions screen, scr_s to scroll stack screen, focus to focus on code or stack */
    int ch = 0, old_ch = 0, scr_c = 0, scr_s = 0, focus = 0;
    uint8_t found = 0, cont = 0;
