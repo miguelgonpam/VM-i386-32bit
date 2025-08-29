@@ -43,7 +43,15 @@ And we will have the cross compiler on the Output folder. We can either add the 
 ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
 ```
 Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`. \
-Compiling the `musl-cross-make` project also brings cross binutils as `objdump` or `readelf`. Useful when looking for vulnerabilities within the code or understanding the program's flow.
+Compiling the `musl-cross-make` project also brings cross binutils as `objdump` or `readelf`. Useful when looking for vulnerabilities within the code or understanding the program's flow. \
+It is very important that, when compiling, we use the `-static` and the `-no-pie` flags:
+- `-static` because the linker has not been implemented, so the emulator expects the libraries to be in the exectuable file.
+- `-no-pie` so the code addresses are always the same, allowing replication. Useful when finding and using exploits.
+
+For example:
+```
+./gcc-i386 -o program32 program32.c -static -no-pie
+```
 
 
 ## Files
