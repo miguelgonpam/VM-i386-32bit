@@ -6,9 +6,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "interface.h"
-#include "flags.h"
-#include "instr.h"
+#include "../lib/interface.h"
+#include "../lib/flags.h"
+#include "../lib/instr.h"
 
 
 extern uint32_t eflags;

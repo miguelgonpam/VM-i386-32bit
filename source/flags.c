@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "flags.h"
+#include "../lib/flags.h"
 
 uint32_t eflags = 0x202;
 

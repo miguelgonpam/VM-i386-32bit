@@ -1,3 +1,0 @@
-Read ELF headers. 
-Segment loaded. vaddr=0x08048000, size=4496 bytes
-Segment loaded. vaddr=0x0804afec, size=2864 bytes

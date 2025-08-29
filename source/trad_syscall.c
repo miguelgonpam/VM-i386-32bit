@@ -1,5 +1,5 @@
-#include "trad_syscall.h"
-#include "syscall.h"
+#include "../lib/trad_syscall.h"
+#include "../lib/syscall.h"
 #include <stdint.h>
 
 Syscall32bits syscalls[]= {

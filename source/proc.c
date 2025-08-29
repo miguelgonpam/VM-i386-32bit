@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <capstone/capstone.h>
-#include "instr.h"
-#include "flags.h"
-#include "loader.h"
-#include "interface.h"
+#include "../lib/instr.h"
+#include "../lib/flags.h"
+#include "../lib/loader.h"
+#include "../lib/interface.h"
 
 #define MIN(a,b) ((a > b)? (b) : (a))
 #define MAX_STR 75

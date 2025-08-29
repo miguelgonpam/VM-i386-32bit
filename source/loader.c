@@ -4,8 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <elf.h>
-#include "loader.h"
-#include "instr.h"
+#include "../lib/loader.h"
+#include "../lib/instr.h"
 
 #define AUXV_VALUE 0
 #define AUXV_ADDR  1

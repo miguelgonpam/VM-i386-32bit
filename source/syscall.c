@@ -40,8 +40,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "instr.h"
-#include "typesi386.h"
+#include "../lib/instr.h"
+#include "../lib/typesi386.h"
 
 #include <signal.h>
 

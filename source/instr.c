@@ -4,9 +4,9 @@
 #include <capstone/capstone.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "instr.h"
-#include "flags.h"
-#include "interrupts.h"
+#include "../lib/instr.h"
+#include "../lib/flags.h"
+#include "../lib/interrupts.h"
 
 
 /******************************************************/

@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include "typesi386.h"
+#include "../lib/typesi386.h"
 #include <signal.h>
 #include <string.h>
 

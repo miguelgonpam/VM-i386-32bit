@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "interrupts.h"
-#include "trad_syscall.h"
-#include "syscall.h"
+#include "../lib/interrupts.h"
+#include "../lib/trad_syscall.h"
+#include "../lib/syscall.h"
 
 Interrupt idt[] = {
     unimplemented, unimplemented, unimplemented, unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,unimplemented,
