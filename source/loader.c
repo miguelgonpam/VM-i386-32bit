@@ -156,7 +156,7 @@ void load_stack(int argc, char *argv[], char *envp[]){
         envp_emu[i]=esp;
     }
     /* Push argv strings, first last one*/
-    for (int i=n_argv-1; i>0; i--){
+    for (int i=n_argv-1; i>1; i--){ /* i>1 because program name is argv[0] and emulator mode is argv[1]*/
         char * p = argv[i];
         int len = strlen(p)+1;
         esp -= len;
@@ -216,15 +216,9 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
         return 1;
     }
 
-    /* Args comprobation */
-    if (argc != 2) {
-        fprintf(stdout, "Uso: %s <archivo_elf>\n", argv[0]);
-        fprintf(log, "Wrong number of arguments. \n");
-        return 1;
-    }
-
-    /* Open ELF file to perform binary read*/
-    FILE *elf_file = fopen(argv[1], "rb");
+    /* Open ELF file to perform binary read */
+    /* argc was already checked at proc.c so it must be at least 3 */
+    FILE *elf_file = fopen(argv[2], "rb");
     if (!elf_file) {
         perror("Error al abrir ELF");
         fprintf(log, "Failed to open ELF file. \n");
