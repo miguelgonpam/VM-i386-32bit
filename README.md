@@ -1,19 +1,24 @@
 # VM-i386-32bit
-Virtual machine that executes the i386-32bit Instruction set. \
+Emulator that executes the i386-32bit Instruction set. \
 The goal is to create a 64-bit program that is able to execute a i386 32-bit program, ELF32 format. \
 Until syscall support is given for any arch, the project is designed to either execute in a x86_64 machine or a x86_64 docker. Ubuntu24.04 is recommended. \
 The syntax should be the following: 
 ```
-./proc 32b-prog
+./proc <mode> 32b-prog
 ```
 
-But first, program needs to be compiled. It can be compiled either using the `compile.sh` script or with the following gcc line.
+Mode can either be `-i`, `-n` or `-h`: \
+`-i` runs the emulator using the graphic interface. \
+`-n` runs the emulator as if it was run from the terminal. \
+`-h` prints help regarding the usage of the program. If this option is specified, the 32bit program name is not necessary.
+
+But first, program needs to be compiled. It can be compiled either using the `compile.sh` script or with the following gcc line. Make sure to first install all the packages needed (see next section).
 ```
 gcc -o proc source/*.c -lcapstone -lc
 ```
 
 ## Packages
-In order to the program to work, we need to install the following packages: 
+In order to make the program work, we need to install the following packages: 
 ```
 sudo apt install libcapstone-dev
 ```
@@ -33,7 +38,7 @@ Then we run the following comands.
 make
 sudo make install
 ```
-And we will have the cross compiler on the Output folder. We can either add the `$(OUTPUT)/bin/` folder to the path or create a symbolic link to the i386-linux-musl-gcc object.
+And we will have the cross compiler on the Output folder. We can either add the `$(OUTPUT)/bin/` folder to the PATH or create a symbolic link to the i386-linux-musl-gcc object.
 ```
 ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
 ```
