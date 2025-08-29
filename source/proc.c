@@ -725,17 +725,20 @@ int interface_main(int argc, char *argv[], char *envp[]){
 
 int main(int argc, char *argv[], char *envp[]){
 
+
+
    /* Args comprobation */
-   if (argc < 3) {
+   if(argc == 2 && strcmp(argv[1], "-h") == 0){
+      fprintf(stdout, "Usage: %s <mode> <elf_file>\n-h prints manual page. Shows all the commands\n-i runs the emulator with graphic interface\n-n runs the emulator in normal mode, as if the program was executed from the terminal\n", argv[0]);
+      return 0;
+   }else if (argc < 3) {
       usage:
       fprintf(stdout, "Usage: %s <mode> <elf_file>\nUse -h for detailed info\n", argv[0]);
       return 1;
    }
 
-   if(strcmp(argv[1], "-h") == 0){
-      fprintf(stdout, "Usage: %s <mode> <elf_file>\n-h prints manual page. Shows all the commands\n-i runs the emulator with graphic interface\n-n runs the emulator in normal mode, as if the program was executed from the terminal\n", argv[0]);
-      return 0;
-   }else if(strcmp(argv[1], "-i") == 0){
+   /* Main modes */
+   if(strcmp(argv[1], "-i") == 0){
       return interface_main(argc, argv, envp);
    }else if(strcmp(argv[1], "-n") == 0){
       return blind_main(argc, argv, envp);
