@@ -1,15 +1,15 @@
 # VM-i386-32bit
 Virtual machine that executes the i386-32bit Instruction set. \
 The goal is to create a 64-bit program that is able to execute a i386 32-bit program, ELF32 format. \
-This project is designed to either execute in a x86_64 machine or a x86_64 docker. Ubuntu24.04 is recommended. \
+Until syscall support is given for any arch, the project is designed to either execute in a x86_64 machine or a x86_64 docker. Ubuntu24.04 is recommended. \
 The syntax should be the following: 
 ```
 ./proc 32b-prog
 ```
 
-But first, program needs to be compiled. It can be compiled either using the `compilar.sh` script or with the following gcc line.
+But first, program needs to be compiled. It can be compiled either using the `compile.sh` script or with the following gcc line.
 ```
-gcc -o proc proc.c instr.c flags.c loader.c interface.c syscall.c interrupts.c trad_syscall.c -lcapstone -lc
+gcc -o proc source/*.c -lcapstone -lc
 ```
 
 ## Packages
@@ -17,10 +17,10 @@ In order to the program to work, we need to install the following packages:
 ```
 sudo apt install libcapstone-dev
 ```
-`Capstone`library allows to disassemble i386 bytecode. 
+`Capstone` library allows to disassemble i386 bytecode. 
 
 ## Compiling your own 32bit i386 programs
-In order to compile i386 legacy programs (without i686 instructions), we cant use gcc-multilib and the -m32 flag, so we are going to use a cross-compiler.
+In order to compile i386 legacy programs (without i686 instructions), we cant use gcc-multilib and the -m32 flag, because it would include i686 instructions, so we are going to use a cross-compiler.
 We can obtain a cross-compiler using the [Musl-cross-make project](https://github.com/richfelker/musl-cross-make). Musl is a light implementation for the standard libc.
 First we need to create a `config.mak` file and write the following lines. Output folder could be any folder.
 ```
@@ -38,34 +38,35 @@ And we will have the cross compiler on the Output folder. We can either add the 
 ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
 ```
 Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`. \
-This process also brings cross binutils as `objdump` or `readelf`.
+Compiling the `musl-cross-make` project also brings cross binutils as `objdump` or `readelf`. Useful when looking for vulnerabilities within the code or understanding the program's flow.
 
 
 ## Files
-`proc.c` is the main file, which will contain the `int main()` function and will use every other file. 
 
-`flags.h` is the header file implemented in `flags.c`. It defines flags values (bit position). \
-`flags.c` is the implementation file of `flags.h`. It implements the functions needed to set, clear, complement and test flags. It also contains the `EFLAGS` register 
+### Lib directory
+Lib directory contains all the project's header files (.h).
 
-`instr.h` is the header file that defines all the instruction functions (add, sub, ret...). \
-`instr.c` is the implementation of the `instr.h` file. It also contains the 32 bit registers (eax, eip, esp, ecx, edx, ebx, ebp, esi, edi, conceived as a uint32_t) and the memory, conceived as a uint8_t pointer, with a real memory allocation of 2^32 bytes (4GB). 
+-`flags.h` is the header file implemented in `flags.c`. It defines flags values (bit position). \
+-`instr.h` is the header file that defines all the instruction functions (add, sub, ret...). \
+-`syscall.h` is the header file that defines all the syscalls. \
+-`trad_syscall.h`defines the `Syscall32bits` type, used by `trad_syscall.c` to translate i386 syscall numbers and args to x86_64 syscalls. \
+-`typesi386.h` defines types in both 32 and 64 bits so the syscall translation is easier. \
+-`loader.h` is the header file that defines the functions needed to load the executable. \
+-`interface.h` is the header file that defines the functions needed to create the program's interface. \
+-`interrupts.h` defines the header for the interrupts implementation file. 
 
-`syscall.h` is the header file that defines all the syscalls. \
-`syscall.c` is the implementataion file for `syscall.h`. Implements the argument transalte from 32 to 64 bit and does the 64bit syscall.
+### Source directory
+Source directory contains all the project's implementation files (.c).
 
-`trad_syscall.h`defines the `Syscall32bits` type, used by `trad_syscall.c` to translate i386 syscall numbers and args to x86_64 syscalls. \
-`trad_syscall.c` translates i386 syscalls into x86_64 syscalls.
-
-`types.h` defines types in both 32 and 64 bits so the syscall translation is easier.
-
-`loader.h` is the header file that defines the functions needed to load the executable. \
-`loader.c` is the implementation file that actually loads the executable bytecode into the memory. 
-
-`interface.h` is the header file that defines the functions needed to create the program's interface. \
-`interface.c` is the implementation file that implements the interface.
-
-`interrupts.h` defines the header for the interrupts implementation file. \
-`interrupts.c` implements both the dispatcher and interrupts handling functions.
+-`proc.c` is the main file, which will contain the `int main()` function and will use every other file. \
+-`flags.c` is the implementation file of `flags.h`. It implements the functions needed to set, clear, complement and test flags. It also contains the `EFLAGS` register. \
+-`instr.c` is the implementation of the `instr.h` file. It also contains the 32 bit registers (eax, eip, esp, ecx, edx, ebx, ebp, esi, edi, conceived as a uint32_t) and the memory, conceived as a uint8_t pointer, with a real memory allocation of 2^32 bytes (4GB). \
+-`syscall.c` is the implementataion file for `syscall.h`. Implements the argument transalte from 32 to 64 bit and does the 64bit syscall. \
+-`trad_syscall.c` translates i386 syscalls into x86_64 syscalls. \
+-`loader.c` is the implementation file that actually loads the executable bytecode into the memory. \
+-`interface.c` is the implementation file that implements the interface. \
+-`interrupts.c` implements both the dispatcher and interrupts handling functions. \
+-`typesi386.c` implements some auxiliary functions to translate types from 32bit to 64bit.
 
 ## Interface use
 ```
