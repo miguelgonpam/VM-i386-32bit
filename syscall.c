@@ -37,13 +37,13 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
-#include <signal.h>
+#include <string.h>
 #include <time.h>
 
 #include "instr.h"
-#include "types.h"
+#include "typesi386.h"
 
-
+#include <signal.h>
 
 
 /*
@@ -316,8 +316,47 @@ uint32_t do_brk(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, ui
 }
 
 
+/**
+ * sigaction, rt_sigaction - examine and change a signal action
+ *
+ * Syscall number 13
+ *
+ * int sigaction(int signum, const struct sigaction *_Nullable restrict act, struct sigaction *_Nullable restrict oldact);
+ */
+uint32_t do_rt_sigaction(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){
+    uint32_t res;
+    
+    /* Convert act to 64 bits */
+    struct sigaction32 * act32 = (struct sigaction32 *)(mem + *arg2);
+    struct sigaction * act64 = calloc(1, sizeof(struct sigaction));
 
-uint32_t do_rt_sigaction(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number13
+    /* Translation */
+    
+    convert_mask32_to_mask64(act32->sa_mask, &act64->sa_mask);
+
+    if (act32->sa_handler == 0 || act32->sa_handler == 1) {
+        act64->sa_handler = (void *)(uintptr_t) act32->sa_handler; // SIG_DFL / SIG_IGN
+    } else {
+        act64->sa_handler = (void *)(mem + act32->sa_handler);
+    }
+    act64->sa_flags = (int) act32->sa_flags; /* Same type (uint32_t) */
+    //convert_flags32_to_flags64(act32->sa_flags, &act64->sa_flags);
+    
+    act64->sa_restorer = act32->sa_restorer?(void *)(mem + act32->sa_restorer):0x0;
+
+    struct sigaction * oldact64 = calloc(1, sizeof(struct sigaction));
+
+    //res =  syscall(SYS_rt_sigaction, *arg1, act64, NULL, sizeof(sigset_t));
+    res = sigaction(*arg1, act64, NULL);
+    
+    /* Convert act to 32 bits */
+    //sigaction32 * oldact32;
+    /* Store in 32bit pointer trampoline address to real 64bit func if translate is impossible */
+    //oldact32->sa_handler = oldact64->sa_handler - mem; /* Maybe it is not on mem range (mem - mem+0xFFFFFFFF) */
+    /* Its not mandatory to translate oldact in some cases, we can just ignore it */
+
+    return res;
+}
 uint32_t do_rt_sigprocmask(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number14
 uint32_t do_rt_sigreturn(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number15
 
@@ -667,6 +706,37 @@ uint32_t do_vfork(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, 
 }
 
 /**
+ * Auxiliary function for counting argv and envp sizes in execve args translation.
+ * 
+ * @param buff buffer to count its size.
+ * 
+ * @return size of buff.
+ */
+uint32_t buffer_size(uint32_t buff[]){
+    int count = 0;
+    while (buff[count] != 0x00000000) { /* Comparison to null */
+        count++;
+    }
+    return count;
+}
+
+/**
+ * Translates a whole 32bit pointer buffer to 64bit pointer buffer, given both buffers and the size (it must match).
+ * Auxiliary function.
+ * 
+ * @param buff32 buffer of 32bit pointers
+ * @param buff64 buffer of 64bit pointes
+ * @param size of both buffers. Sizes must match.
+ */
+void translate_buffer_dirs_32_to_64(uint32_t buff32 [], char ** buff64, size_t size){
+    for(int i=0; i<size; i++){
+        buff64[i] = (mem + buff32[i]);
+    }
+}
+
+extern char ** environ;
+
+/**
  * execve - execute program
  *
  * Syscall number 59
@@ -677,8 +747,20 @@ uint32_t do_execve(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
     //POINTER TO VARIABLE WORKS, BUT IT POINTS TO 32bit INTEGERS; NOT 64bit POINTERS, it must do mem+off 
     // for every offser within pointer to pointers. ???
     const char * pathname = (char *)(mem+*arg1);
-    const char** argv = (const char **)(mem+*arg2);
-    const char** envp = (const char **)(mem+*arg3);
+    uint32_t *argv32 = (uint32_t *)(mem+*arg2);
+    uint32_t *envp32 = (uint32_t *)(mem+*arg3);
+    
+    size_t ar32 = buffer_size(argv32);
+    char** argv = calloc(ar32+1, sizeof(char *));
+    translate_buffer_dirs_32_to_64(argv32, argv, ar32);
+
+
+    size_t en32 = buffer_size(envp32);
+    char ** envp;
+    envp = calloc(en32+1, sizeof(char *));
+    translate_buffer_dirs_32_to_64(envp32, envp, en32);
+    
+
     return (uint32_t)syscall(SYS_execve, pathname, argv, envp);
 }
 

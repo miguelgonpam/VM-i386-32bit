@@ -735,6 +735,6 @@ int interface_main(int argc, char *argv[], char *envp[]){
 }
 
 int main(int argc, char *argv[], char *envp[]){
-   return interface_main(argc, argv, envp);
-   //return blind_main(argc, argv, envp);
+   //return interface_main(argc, argv, envp);
+   return blind_main(argc, argv, envp);
 }

@@ -128,9 +128,9 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
 
     /* Registers */
     printf("┌%*s┐\n", cols-2, lines);
-    printf("│ %sEAX : 0x%08x %010u%s %*s%sECX : 0x%08x %010u%s %*s%sESI : 0x%08x %010u%s\n", eax!=old_eax?"\033[7m":"",eax, eax,"\033[0m" ,spaces, " ", ecx!=old_ecx?"\033[7m":"",ecx, ecx,"\033[0m" ,spaces, " ", esi!=old_esi?"\033[7m":"",esi, esi,"\033[0m");
+    printf("│ %sEAX : 0x%08x %10d%s %*s%sECX : 0x%08x %10d%s %*s%sESI : 0x%08x %010u%s\n", eax!=old_eax?"\033[7m":"",eax, eax,"\033[0m" ,spaces, " ", ecx!=old_ecx?"\033[7m":"",ecx, ecx,"\033[0m" ,spaces, " ", esi!=old_esi?"\033[7m":"",esi, esi,"\033[0m");
     printf("\033[%d;%dH│\n", 2, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
-    printf("│ %sEDX : 0x%08x %010u%s %*s%sEBX : 0x%08x %010u%s %*s%sEDI : 0x%08x %010u%s\n", edx!=old_edx?"\033[7m":"",edx, edx, "\033[0m",spaces, " ", ebx!=old_ebx?"\033[7m":"",ebx, ebx,"\033[0m" ,spaces, " ", edi!=old_edi?"\033[7m":"",edi, edi, "\033[0m");
+    printf("│ %sEDX : 0x%08x %10d%s %*s%sEBX : 0x%08x %10d%s %*s%sEDI : 0x%08x %010u%s\n", edx!=old_edx?"\033[7m":"",edx, edx, "\033[0m",spaces, " ", ebx!=old_ebx?"\033[7m":"",ebx, ebx,"\033[0m" ,spaces, " ", edi!=old_edi?"\033[7m":"",edi, edi, "\033[0m");
     printf("\033[%d;%dH│\n", 3, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
     printf("│ %sESP : 0x%08x %010u%s %*sEIP : 0x%08x %010u %*s%sEBP : 0x%08x %010u%s\n", esp!=old_esp?"\033[7m":"",esp, esp, "\033[0m",spaces, " ", eip, eip,spaces, " ", ebp!=old_ebp?"\033[7m":"",ebp, ebp, "\033[0m");
     printf("\033[%d;%dH│\n", 4, cols); /* Moves the cursor to the end of the terminal line and puts the closing character */
