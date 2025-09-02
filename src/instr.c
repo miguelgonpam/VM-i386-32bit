@@ -15,9 +15,12 @@
 typedef int(*Instruction)(cs_insn *insn);
 uint8_t * mem;
 uint32_t eax = 0, edx = 0, esp = 0, esi = 0, eip = 0, cs = 0, ds = 0, fs = 0, ecx = 0, ebx = 0, ebp = 0, edi = 0, ss = 0, es = 0, gs = 0; 
+uint32_t cr0 = 0, cr1 = 0, cr2 = 0, cr3 = 0, cr4 = 0, dr0 = 0, dr1 = 0, dr2 = 0, dr3 = 0, dr4 = 0, dr5 = 0, dr6 = 0, dr7 = 0, tr6 = 0, tr7 = 0;
+uint16_t ldtr;
 GDTR gdtr, idtr;
 extern uint32_t eflags;
 extern int rows, cols;
+
 
 /* REGISTER            INVL,   AH,   AL,   AX,   BH,   BL,   BP,  BPL,   BX,   CH,   CL,   CS,   CX,   DH,   DI,  DIL,   DL,   DS,   DX,  EAX,  EBP,  EBX,  ECX,  EDI,  EDX,  EFLAGS,  EIP,  EIZ,   ES,  ESI,  ESP, FPSW,   FS,   GS,   IP,  RAX,  RBP,  RBX,  RCX,  RDI,  RDX,  RIP,  RIZ,  RSI,  RSP,   SI,  SIL,   SP,  SPL,   SS  */
 /* INDEX                  0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24       25    26    27    28    29    30    31    32    33    34    35    36    37    38    39    40    41    42    43    44    45    46    47    48    49  */
@@ -25,39 +28,52 @@ void * regs[] =       {NULL, &eax, &eax, &eax, &ebx, &ebx, &ebp, NULL, &ebx, &ec
 uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x08, 0x08, 0x10, 0x10, 0x08, 0x10,    0, 0x08, 0x10, 0x10, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,    0x20, 0x20,    0, 0x10, 0x20, 0x20,    0, 0x10, 0x10, 0x10,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0, 0x10,    0, 0x10,    0, 0x10};
 
 const char *inss[] = {
-    "aaa","aad","aam","aas","adc","add","and","bt","bts","call","cbw","clc",
-    "cld","cli","cmc","cmp","cmpsb","cmpsw", "cmpsd","cwd", "cdq","cwde","daa","das","dec","div",
-    "hlt","idiv","imul","in","inc","int","into","iret","ja","jae","jb","jbe",
-    "jc","jcxz","jecxz_i","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
-    "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
-    "jpo","js", "jz","lahf","lar","lcall","lds","lea","leave","les","lfs",
-    "lgdt","lgs","lidt","lldt","lmsw","lods","loop","loope","loopne","loopnz",
-    "loopz","lsl","ltr","mov","movs", "movsb", "movsw", "movsd", "movsx","movzx","mul","neg","nop","not",
-    "or","out","outs","pop","popa","popf","push","pusha","pushf","ret","rcl","rcr",
-    "rol","ror","sahf","sal","sar","sbb","scas","seta","setae","setb","setbe",
-    "setc","sete","setg","setge","setl","setle","setna","setnae","setnb",
-    "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
-    "setns","seto","setp","setpe","setpo","sets","setz","shl","shr","sal", "sar", "stc","std","sti",
-    "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movsb", "rep movsw", "rep movsd", "rep outs", "rep stosb",
-    "rep stosw","rep stosd"
+    "aaa","aad","aam","aas","adc","add","and", "arpl", "bound", "bsf", 
+    "bsr", "bt","btc", "btr","bts","call","cbw","cwde","clc", "cld",
+    "cli","clts","cmc","cmp","cmpsb","cmpsw", "cmpsd","cwd", "cdq","daa",
+    "das","dec","div", "hlt","idiv","imul","in","inc","ins","insb",
+    "insw","insd","int","into","iret","iretd","ja","jae","jb","jbe",
+    "jc","jcxz","jecxz_i","je","jg","jge","jl","jle","jmp","jna",
+    "jnae","jnb","jnbe","jnc","jne","jng","jnge","jnl","jnle","jno",
+    "jnp","jns","jo","jp","jpe","jpo","js", "jz","lahf","lar",
+    "lea","leave","lgdt","lidt","les","lfs","lgs","lds","lss","lldt",
+    "lmsw", "lock","lods","lodsb","lodsw","lodsd","loop","loope","loopne","loopnz",
+    "loopz","lsl","ltr","mov","movs", "movsb", "movsw", "movsd", "movsx","movzx",
+    "mul","neg","nop","not","or","out","outs","outsb","outsw","outsd",
+    "pop","popa","popad","popf","popfd","push","pusha","pushad","pushf","pushfd",
+    "rcl","rcr","rol","ror","ret","sahf","sal","sar","shl","shr",
+    "sbb","scas","scasb","scasw","scasd","seta","setae","setb","setbe","setc",
+    "sete","setg","setge","setl","setle","setna","setnae","setnb","setnbe","setnc",
+    "setne","setng","setnge","setnl","setnle","setno","setnp","setns","seto","setp",
+    "setpe","setpo","sets","setz", "sgdt", "sidt","shld","shrd","sldt","smsw",
+    "stc","std","sti","stos","stosb","stosw","stosd","sub","test","verr",
+    "verw","wait","xchg","xlat","xlatb","xor","rep ins", "rep movsb", "rep movsw", "rep movsd", 
+    "rep outs", "rep stosb","rep stosw","rep stosd",""
     };
 
-Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
-    bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmpsb_i, cmpsw_i, cmpsd_i, cwd_i, cdq_i, 
-    cwde_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
-    into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, jecxz_i, je_i, jg_i, jge_i, jl_i, 
-    jle_i, jmp_i, jna_i, jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, 
-    jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, jz_i, lahf_i, 
-    lar_i, lcall_i, lds_i, lea_i, leave_i, les_i, lfs_i, lgdt_i, lgs_i, lidt_i, 
-    lldt_i, lmsw_i, lods_i, loop_i, loope_i, loopne_i, loopnz_i, loopz_i, lsl_i, 
-    ltr_i, mov_i, movs_i, movs_i, movs_i, movs_i, movsx_i, movzx_i, mul_i, neg_i, nop_i, not_i, or_i, out_i,
-    outs_i, pop_i, popa_i, popf_i, push_i, pusha_i, pushf_i, ret_i, rcl_i, rcr_i, rol_i, 
-    ror_i, sahf_i, sal_i, sar_i, sbb_i, scas_i, seta_i, setae_i, setb_i, setbe_i, 
-    setc_i, sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, 
-    setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
-    setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, setz_i, shl_i, shr_i, sal_i, sar_i, stc_i, 
-    std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
-    rep_movs_i, rep_movs_i, rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i};
+Instruction instructions[] = {
+    aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, arpl_i, bound_i, bsf_i, 
+    bsr_i, bt_i, btc_i, btr_i, bts_i, call_i, cbw_i, cwde_i, clc_i, cld_i, 
+    cli_i, clts_i, cmc_i, cmp_i, cmpsb_i, cmpsw_i, cmpsd_i, cwd_i, cdq_i, daa_i, 
+    das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, ins_i, insb_i,
+    insw_i, insd_i, int_i, into_i, iret_i, iretd_i, ja_i, jae_i, jb_i, jbe_i, 
+    jc_i, jcxz_i, jecxz_i, je_i, jg_i, jge_i, jl_i, jle_i, jmp_i, jna_i,
+    jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, jnle_i, jno_i, 
+    jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, jz_i, lahf_i, lar_i, 
+    lea_i, leave_i, lgdt_i, lidt_i, les_i, lfs_i, lgs_i, lds_i, lss_i, lldt_i, 
+    lmsw_i, lock_i, lods_i, lodsb_i, lodsw_i, lodsd_i, loop_i, loope_i, loopne_i, loopnz_i,
+    loopz_i, lsl_i, ltr_i, mov_i, movs_i, movs_i, movs_i, movs_i, movsx_i, movzx_i,
+    mul_i, neg_i, nop_i, not_i, or_i, out_i,outs_i, outsb_i, outsw_i, outsd_i,
+    pop_i, popa_i, popad_i, popf_i, popfd_i, push_i, pusha_i, pushad_i, pushf_i, pushfd_i,
+    rcl_i, rcr_i, rol_i, ror_i, ret_i, sahf_i, sal_i, sar_i, shl_i, shr_i,
+    sbb_i, scas_i, scas_i, scas_i, scas_i, seta_i, setae_i, setb_i, setbe_i, setc_i,
+    sete_i, setg_i, setge_i, setl_i, setle_i, setna_i, setnae_i, setnb_i, setnbe_i, setnc_i,
+    setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, setnp_i, setns_i, seto_i, setp_i, 
+    setpe_i, setpo_i, sets_i, setz_i, sgdt_i, sidt_i, shld_i, shrd_i, sldt_i, smsw_i,
+    stc_i, std_i, sti_i, stos_i, stos_i, stos_i, stos_i, sub_i, test_i, verr_i,
+    verw_i,  wait_i, xchg_i, xlat_i, xlat_i, xor_i, rep_ins_i,rep_movs_i, rep_movs_i, rep_movs_i,
+    rep_outs_i,rep_stos_i, rep_stos_i, rep_stos_i, NULL
+};
 
 
 /******************************************************/
@@ -112,13 +128,16 @@ int initialize(){
  * @return instructions execution return value.
  */
 int dispatcher(char * mnemonic, cs_insn * insn){
-    const size_t count = sizeof(instructions)/sizeof(*instructions);
-    for (int i = 0; i< count ; i++){
+    /* Non-Executable Mitigation Technique */
+    //if(eip >= STACK_TOP && eip <= STACK_BOTTOM){ /* Instruction resides on the stack*/
+        /* Stack should not be executable */
+        //return 0xdeadbeef;}
+
+    for (int i = 0; i< NINS ; i++){
         if(strcmp(inss[i], mnemonic) == 0){
             return instructions[i](insn);
         }
     }
-
     return -1;
 }
 
@@ -1200,6 +1219,12 @@ int cli_i(cs_insn *insn){
     return 0;
 }
 
+int clts_i(cs_insn *insn){
+    eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
+}
+
 /**
  *  CMC. Complement Carry Flag.
  *
@@ -1964,7 +1989,7 @@ int cmpsd_i (cs_insn *insn){
 
 int cmpxchg(cs_insn *insn){
     eip += insn->size;
-
+    /*UNIMPLEMENTED*/
     return 0;
 }
 
@@ -2181,7 +2206,7 @@ int div_i (cs_insn *insn){
 } 
 int hlt_i (cs_insn *insn){
     eip += insn->size;
-
+    /*UNIMPLEMENTED*/
     return 0;
 } 
 
@@ -2671,6 +2696,147 @@ int inc_i (cs_insn *insn){
 } 
 
 /**
+ *  INS. Input from Port to String.
+ *
+ *  Opcode 0x6D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int ins_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t s1 = op1.size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    void * p;
+    if(op1.type == X86_OP_REG){
+        p = regs[op1.reg];
+    }else{
+        p = (void *)(mem + eff_addr(op1.mem));
+    }
+
+    if (s1 == 1){
+        res = pread(fd, (uint8_t *)p, 1, port);
+    }else if(s1 == 2){
+        res = pread(fd, (uint16_t *)p, 2, port);
+    }else{
+        res = pread(fd, p, 4, port);
+    }
+
+    close(fd);
+
+    return 0;
+}
+
+/**
+ *  INSB. Input from Port to String (Byte).
+ *
+ *  Opcode 0x6C.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int insb_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    /* ES:EDI */
+    res = pread(fd, (uint8_t *)&edi, 1, port);
+
+    close(fd);
+
+    return 0;
+}
+
+/**
+ *  INSW. Input from Port to String (Word).
+ *
+ *  Opcode 0x6D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int insw_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    /* ES:EDI */
+    res = pread(fd, (uint16_t *)&edi, 2, port);
+
+    close(fd);
+
+    return 0;
+}
+
+/**
+ *  INSD. Input from Port to String (Doubleword).
+ *
+ *  Opcode 0x6D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int insd_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    /* ES:EDI */
+    res = pread(fd, &edi, 4, port);
+
+    close(fd);
+
+    return 0;
+}
+
+
+/**
  *  INT. Call to Interrupt Procedure.
  *
  *  Opcode 0xCC, 0xCD.
@@ -2710,9 +2876,37 @@ int into_i (cs_insn *insn){
     return int_dispatcher(0x4,&eax, &ebx, &ecx, &edx, &esi, &edi, &ebp);
 } 
 
+/**
+ *  IRET. Interrupt Return.
+ *
+ *  Opcode 0xCF.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  All; the flags register is popped from stack
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int iret_i (cs_insn *insn){
     eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
+}
 
+/**
+ *  IRETD. Interrupt Return.
+ *
+ *  Opcode 0xCF.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  All; the flags register is popped from stack
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int iretd_i (cs_insn *insn){
+    eip += insn->size;
+    /*UNIMPLEMENTED*/
     return 0;
 }
 
@@ -3773,11 +3967,6 @@ int lar_i (cs_insn *insn){
 } 
 
 
-int lcall_i (cs_insn *insn){
-    eip += insn->size;
-} 
-
-
 
 /**
  *  LEA. Load Effective Address.
@@ -4106,10 +4295,20 @@ int lsl_i(cs_insn *insn){
 }
 
 /**
- * Deprecated. 
+ *  LTR. Load Task Register.
+ *
+ *  Opcode 0x0F 00 /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
  */
 int ltr_i (cs_insn *insn){
     eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
     
 } 
 
@@ -4154,20 +4353,183 @@ int lidt_i (cs_insn *insn){
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
 
-    /* Interrupt Descriptors Table ?*/
+    uint16_t * p = (uint16_t *)(mem + eff_addr(op1.mem));
+
+    idtr.limit = *(p);
+    p++; /* Move the pointer 2 bytes forward */
+    idtr.base = *((uint32_t *)p);
+    
 
     return 0;
 } 
 
+/**
+ *  LLDT. Load Local Descriptors Table Register.
+ *
+ *  Opcode 0x0F 00 /2.  
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lldt_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t val;
+
+    if(op1.type == X86_OP_REG){
+        val = *((uint16_t *)regs[op1.reg]);
+    }else{
+        val = *((uint16_t *)(mem + eff_addr(op1.mem)));
+    }
+
+    ldtr = val;
+
+    return 0;
 } 
+
+/**
+ *  LMSW. Load Machine Status Word.
+ *
+ *  Opcode 0x0F 01 /6.  
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lmsw_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    
+    uint16_t val;
+
+    if(op1.type == X86_OP_REG){
+        val = *((uint16_t *)regs[op1.reg]);
+    }else{
+        val = *((uint16_t *)(mem + eff_addr(op1.mem)));
+    }
+
+    *(uint16_t *)&cr0 = val;
+
+    return 0;
 } 
+
+/**
+ *  LOCK. Assert #LOCK Signal Prefix.
+ *
+ *  Opcode 0xF0.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lock_i(cs_insn *insn){
+    eip += insn ->size;
+    /* UNIMPLEMENTED*/
+    return 0;
+}
+
+/**
+ *  LODS. Load String Operand.
+ *
+ *  Opcode 0xAC, 0xAD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lods_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint8_t s1 = op1.size;
+    void * p;
+    void * m = (void *)(mem + eff_addr(op1.mem));
+    if(s1 == 1){
+        *(uint8_t *)&eax = *(uint8_t *)m;
+    }else if(s1 == 2){
+        *(uint16_t *)&eax = *(uint16_t *)m;
+    }else{
+        eax = *(uint32_t *)m;
+    }
+    
+    return 0;
 } 
+
+/**
+ *  LODSB. Load String Operand (Byte).
+ *
+ *  Opcode 0xAC.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lodsb_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* DS:ESI */
+    *((uint8_t *)&eax) = *((uint8_t*)(mem+esi)); /* DS: ?*/
+
+    return 0;
+} 
+
+/**
+ *  LODSW. Load String Operand (Word).
+ *
+ *  Opcode 0xAD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lodsw_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* DS:ESI */
+    *((uint16_t *)&eax) = *((uint16_t*)(mem+esi)); /* DS: ?*/
+
+    return 0;
+} 
+
+/**
+ *  LODSD. Load String Operand (Doubleword).
+ *
+ *  Opcode 0xAD.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lodsd_i (cs_insn *insn){
+    eip += insn->size;
+
+    /* DS:ESI */
+    eax = *((uint32_t*)(mem+esi)); /* DS: ?*/
+
+    return 0;
+} 
+
+
+
 
 /**
  *  LOOPZ. Loop Control with ECX counter.
@@ -4559,7 +4921,17 @@ int not_i (cs_insn *insn){
     return 0;
 }
 
-
+/**
+ *  OUTS. Output to Port (Doubleword).
+ *
+ *  Opcode 0xE6, 0xE7, 0xEE, 0xEF.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int out_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -4597,12 +4969,152 @@ int out_i (cs_insn *insn){
     return (res!=s2); 
 } 
 
-
+/**
+ *  OUTS. Output String to Port.
+ *
+ *  Opcode 0x6E, 0x6F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int outs_i (cs_insn *insn){
     eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
 
-    return 0;
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    void * p;
+
+    if(op2.type == X86_OP_REG){
+        p = regs[op2.reg];
+    }else{
+        p = (void *)(mem + eff_addr(op2.mem));
+    }
+
+    int res;
+
+    if (s2 == 1){
+        res = pwrite(fd, (uint8_t *)p, 1, port);
+    }else if(s2 == 2){
+        res = pwrite(fd, (uint16_t *)p, 2, port);
+    }else{
+        res = pwrite(fd, (uint32_t *)p, 4, port);
+    }
+
+    close(fd);
+
+    return 0; 
 } 
+
+/**
+ *  OUTS. Output String to Port (Byte).
+ *
+ *  Opcode 0x6E.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int outsb_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+
+    /* ES:EDI */
+    res = pwrite(fd, (uint8_t *)&edi, 1, port);
+
+    close(fd);
+
+    return 0; 
+}
+
+/**
+ *  OUTS. Output String to Port (Word).
+ *
+ *  Opcode 0x6F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int outsw_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    
+    /* ES:EDI */
+    res = pwrite(fd, (uint16_t *)&edi, 2, port);
+
+    close(fd);
+
+    return 0; 
+}
+
+/**
+ *  OUTS. Output String to Port (Doubleword).
+ *
+ *  Opcode 0x6F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int outsd_i(cs_insn *insn){
+    eip += insn->size;
+
+    uint16_t port = *((uint16_t *)&edx);
+
+    int fd = open("/dev/port", O_RDWR);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    int res;
+    
+    /* ES:EDI */
+    res = pwrite(fd, &edi, 4, port);
+
+    close(fd);
+
+    return 0; 
+}
 
 /**
  *  POPA. Pop all General Registers (16b).
@@ -6123,6 +6635,55 @@ int setz_i (cs_insn *insn){
 } 
 
 /**
+ *  SGDT. Store Global Descriptor Table Register.
+ *
+ *  Opcode 0xOF 01 /0.
+ *
+ *  Interrupt 6 if DST is a register. Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int sgdt_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    void * p = (void *)(mem + eff_addr(op1.mem));
+
+    *((uint16_t *)p) = gdtr.limit;
+    *((uint32_t *)(((uint16_t *)p)+1)) = gdtr.base & 0xFFFFFF; /* Manual says 4th byte must be 0x00;*/
+
+    return 0;
+}
+
+/**
+ *  SIDT. Store Interrupt Descriptor Table Register.
+ *
+ *  Opcode 0xOF 01 /1.
+ *
+ *  Interrupt 6 if DST is a register. Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int sidt_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    void * p = (void *)(mem + eff_addr(op1.mem));
+
+    *((uint16_t *)p) = idtr.limit;
+    *((uint32_t *)(((uint16_t *)p)+1)) = idtr.base & 0xFFFFFF; /* Manual says 4th byte must be 0x00;*/
+
+    return 0;
+}
+
+
+/**
  *  SAL. Shift Arithmetic Left.
  *
  *  Opcode 0xC0 /4, 0xC1 /4, 0xD0 /4, 0xD1 /4, 0xD2 /4, 0xD3 /4.
@@ -6383,6 +6944,23 @@ int shr_i(cs_insn *insn){
 }
 
 /**
+ *  SHRD. Double Precision Shift Left.
+ *
+ *  Opcode 0xOF A4, 0xOF A5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  CF, PF, ZF and SF as described on Appendix C, rest are undefined.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int shld_i(cs_insn *insn){
+    eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
+}
+
+/**
  *  SHRD. Double Precision Shift Right.
  *
  *  Opcode 0xOF AC, 0xOF AD.
@@ -6464,6 +7042,64 @@ int shrd_i (cs_insn *insn){
 
     return 0;
 } 
+
+/**
+ *  SLDT. Store Local Descriptors Table.
+ *
+ *  Opcode 0x00 00 /0.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int sldt_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t * p;
+
+    if(op1.type == X86_OP_REG){
+        p = (uint16_t *)regs[op1.reg];
+    }else{
+        p = (uint16_t *)(mem + eff_addr(op1.mem));
+    }
+
+    *p=ldtr;
+
+    return 0;
+}
+
+/**
+ *  SMSW. Store Machine Status Word
+ *
+ *  Opcode 0x0F 01 /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int smsw_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t * p;
+
+    if(op1.type == X86_OP_REG){
+        p = (uint16_t *)regs[op1.reg];
+    }else{
+        p = (uint16_t *)(mem + eff_addr(op1.mem));
+    }
+
+    *p=(uint16_t)(cr0 & 0xFFFF);
+
+    return 0;
+}
 
 /**
  *  STC. Set Carry Flag.
@@ -6627,10 +7263,92 @@ int test_i (cs_insn *insn){
     return 0;
 } 
 
+/**
+ *  VERW. Verify a Segment for Reading.
+ *
+ *  Opcode 0x0F 00 /4.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int verr_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
 
+    uint16_t selector;
+
+    if (op1.type == X86_OP_REG){
+        selector = *((uint16_t *)regs[op1.reg]);
+    }else{
+        selector = *((uint16_t *)(mem + eff_addr(op1.mem)));
+    }
+
+    /*READ FLAGS OF SELECTOR*/
+    /*CHECK PRIVILEGES*/
+    uint16_t n = (selector >> 3);
+    if (n > 0 && n < GDT_ENTRIES){
+        /* Contradictory manual INFO ??? */
+        clear_Flag(ZF);
+    }else{
+        set_Flag(ZF);
+    }
+}
+
+/**
+ *  VERW. Verify a Segment for Writing.
+ *
+ *  Opcode 0x0F 00 /5.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int verw_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+
+    uint16_t selector;
+
+    if (op1.type == X86_OP_REG){
+        selector = *((uint16_t *)regs[op1.reg]);
+    }else{
+        selector = *((uint16_t *)(mem + eff_addr(op1.mem)));
+    }
+
+    /*READ FLAGS OF SELECTOR*/
+    /*CHECK PRIVILEGES*/
+    uint16_t n = (selector >> 3);
+    if (n > 0 && n < GDT_ENTRIES){
+        /* Contradictory manual INFO ??? */
+        clear_Flag(ZF);
+    }else{
+        set_Flag(ZF);
+    }
+
+    return 0;
+}
+
+/**
+ *  WAIT. Wait until BUSY# Pin is Inactive (HIGH).
+ *
+ *  Opcode 0x9B.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int wait_i (cs_insn *insn){
     eip += insn->size;
-
+    /*UNIMPLEMENTED*/
     return 0;
 } 
 
@@ -6735,7 +7453,6 @@ int xlat_i (cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int rep_stos_i(cs_insn *insn){
-    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     /* Operand size in bytes */
@@ -6748,46 +7465,66 @@ int rep_stos_i(cs_insn *insn){
     if (s == 1){
         /* STOSB, using AL and moving 1 byte each iteration */
         uint8_t * al = (uint8_t *)&eax;
-        while(ecx != 0){
-            /* DestReg = ES:EDI*/
-            destreg = segbase + edi;
-            /* ES:DestReg := AL */
-            *((uint8_t *)(mem+destreg))=*al;
-            /* If DF = 0, destreg+=1, else destreg-=1 */
-            !test_Flag(DF)?edi++:edi--;
-            ecx--;
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := AL */
+        *((uint8_t *)(mem+destreg))=*al;
+        /* If DF = 0, destreg+=1, else destreg-=1 */
+        !test_Flag(DF)?edi++:edi--;
+        ecx--;
+
+        if(!ecx){
+            eip += insn->size;
         }
     }else if(s == 2){
         /* STOSB, using AX and moving 1 word (2Byte) each iteration */
         uint16_t * ax = (uint16_t *)&eax;
-        while(ecx != 0){
-            /* DestReg = ES:EDI*/
-            destreg = segbase + edi;
-            /* ES:DestReg := AX */
-            *((uint16_t *)(mem+destreg))=*ax;
-            /* If DF = 0, destreg+=2, else destreg-=2 */
-            edi += !test_Flag(DF)?2:-2;
-            ecx--;
+        
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := AX */
+        *((uint16_t *)(mem+destreg))=*ax;
+        /* If DF = 0, destreg+=2, else destreg-=2 */
+        edi += !test_Flag(DF)?2:-2;
+        ecx--;
+
+        if(!ecx){
+            eip += insn->size;
         }
     }else{
         /* STOSD, using EAX and moving 1 doubleword (4Byte) each iteration */
-        while(ecx != 0){
-            /* DestReg = ES:EDI*/
-            destreg = segbase + edi;
-            /* ES:DestReg := EAX */
-            *((uint32_t *)(mem+destreg))=eax;
-            /* If DF = 0, destreg+=4, else destreg-=4 */
-            edi+=!test_Flag(DF)?4:-4;
-            ecx--;
+        /* DestReg = ES:EDI*/
+        destreg = segbase + edi;
+        /* ES:DestReg := EAX */
+        *((uint32_t *)(mem+destreg))=eax;
+        /* If DF = 0, destreg+=4, else destreg-=4 */
+        edi+=!test_Flag(DF)?4:-4;
+        ecx--;
+
+        if(!ecx){
+            eip += insn->size;
         }
     }
+    
     return 0;
 
 }
 
+/**
+ *  REP. Repeat Following String Operation (INS).
+ *
+ *  Opcode 0xF3 6C, 0xF3 6D.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rep_ins_i(cs_insn *insn){
-    //const char *inss[] = { }; 
-    //insn.mnemonic;
+    eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
 }
 
 /**
@@ -6802,7 +7539,6 @@ int rep_ins_i(cs_insn *insn){
  *  @param insn instruction struct that stores all the information.
  */
 int rep_movs_i(cs_insn *insn){
-    eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
     cs_x86_op op2 = x86.operands[1];
@@ -6813,47 +7549,64 @@ int rep_movs_i(cs_insn *insn){
     uint8_t s1 = op1.size;
     if(s1 == 1){
         /* MOVSB */
-        while(ecx){
-            /* Move Byte from [ESI] to [EDI] */
-            mem[edi]=mem[esi];
-            /* Decrement ECX */
-            ecx--;
-            /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
-            edi += !test_Flag(DF)?1:-1;
-            esi += !test_Flag(DF)?1:-1;
+        
+        /* Move Byte from [ESI] to [EDI] */
+        mem[edi]=mem[esi];
+        /* Decrement ECX */
+        ecx--;
+        /* If DF=0, ESI++, EDI++, else ESI--, EDI-- */
+        edi += !test_Flag(DF)?1:-1;
+        esi += !test_Flag(DF)?1:-1;
+        
+        if(!ecx){
+            eip += insn->size;
         }
         
     }else if(s1 == 2){
         /* MOVSW */
-        while(ecx){
-            /* Move Word from [ESI] to [EDI] */
-            *((uint16_t *)(mem+edi)) = *((uint16_t *)(mem+esi));
-            /* Decrement ECX */
-            ecx--;
-            /* If DF=0, ESI+=2, EDI+=2, else ESI-=2, EDI-=2 */
-            edi += !test_Flag(DF)?2:-2;
-            esi += !test_Flag(DF)?2:-2;
-        }
+        /* Move Word from [ESI] to [EDI] */
+        *((uint16_t *)(mem+edi)) = *((uint16_t *)(mem+esi));
+        /* Decrement ECX */
+        ecx--;
+        /* If DF=0, ESI+=2, EDI+=2, else ESI-=2, EDI-=2 */
+        edi += !test_Flag(DF)?2:-2;
+        esi += !test_Flag(DF)?2:-2;
         
+        if(!ecx){
+            eip += insn->size;
+        }
     }else{
         /* MOVSD */
-        while(ecx){
-            /* Move Doubleword from [ESI] to [EDI] */
-            *((uint32_t *)(mem+edi)) = *((uint32_t *)(mem+esi));
-            /* Decrement ECX */
-            ecx--;
-            /* If DF=0, ESI+=4, EDI+=4, else ESI-=4, EDI-=4 */
-            edi += !test_Flag(DF)?4:-4;
-            esi += !test_Flag(DF)?4:-4;
-        }
+        /* Move Doubleword from [ESI] to [EDI] */
+        *((uint32_t *)(mem+edi)) = *((uint32_t *)(mem+esi));
+        /* Decrement ECX */
+        ecx--;
+        /* If DF=0, ESI+=4, EDI+=4, else ESI-=4, EDI-=4 */
+        edi += !test_Flag(DF)?4:-4;
+        esi += !test_Flag(DF)?4:-4;        
         
+        if(!ecx){
+            eip += insn->size;
+        }
     }
     return 0;
 }
 
+/**
+ *  REP. Repeat Following String Operation (OUTS).
+ *
+ *  Opcode 0xF3 6E, 0xF3 6F.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int rep_outs_i(cs_insn *insn){
-    //const char *inss[] = { }; 
-    //insn.mnemonic;
+    eip += insn->size;
+    /*UNIMPLEMENTED*/
+    return 0;
 }
 
 

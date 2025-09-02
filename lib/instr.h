@@ -12,6 +12,8 @@
 #define GDT_ADDR 0xC0FFF000
 #define GDT_TLS_RESERVED 0x3
 
+#define NINS 205
+
 typedef struct{
     uint16_t limit_low;
     uint16_t base_low;
@@ -154,6 +156,7 @@ int sgdt_i(cs_insn *insn);
 int sidt_i(cs_insn *insn);
 int shld_i(cs_insn *insn);
 int shrd_i(cs_insn *insn);
+int sldt_i(cs_insn *insn);
 int smsw_i(cs_insn *insn);
 int stc_i(cs_insn *insn);
 int std_i(cs_insn *insn);
@@ -203,7 +206,6 @@ int jp_i(cs_insn *insn);
 int jpo_i(cs_insn *insn);
 int js_i(cs_insn *insn);
 int jz_i(cs_insn *insn);
-int lcall_i(cs_insn *insn);
 int lldt_i(cs_insn *insn);
 int loope_i(cs_insn *insn);
 int loopne_i(cs_insn *insn);

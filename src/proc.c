@@ -388,16 +388,14 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
          if(!cs_disasm(handle, &mem[eip], 16, eip, 1, &ins)) // If number of disasm instructions is 0.
             goto exit1;
          
-
          /* If returned from syscall, set the terminal on raw mode */
          if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
             disable_raw_mode();
          }
-
          
          cleann(rows, rows);
          movev(rows);
-
+         
          /* Check interrupts ???*/
          res = dispatcher(ins[0].mnemonic, &ins[0]);
 
