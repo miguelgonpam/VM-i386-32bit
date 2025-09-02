@@ -8,8 +8,10 @@ The syntax should be the following:
 ```
 
 Mode can either be `-i`, `-n` or `-h`: \
-`-i` runs the emulator using the graphic interface. \
-`-n` runs the emulator as if it was run from the terminal. \
+`-ie` runs the emulator using the graphic interface with an elf file. \
+`-ne` runs the emulator with an elf file as if it was run from the terminal. \
+`-ir` runs the emulator using the graphic interface with a raw file. \
+`-nr` runs the emulator with a raw file as if it was run from the terminal. \
 `-h` prints help regarding the usage of the program. If this option is specified, the 32bit program name is not necessary.
 
 But first, program needs to be compiled. It can be compiled either using the `compile.sh` script or with the following gcc line. Make sure to first install all the packages needed (see next section).

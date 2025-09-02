@@ -243,10 +243,8 @@ int rep_outs_i(cs_insn *insn);
 int rep_ins_i(cs_insn *insn);
 int rep_stos_i(cs_insn *insn);
 int rep_movs_i(cs_insn *insn);
-int cpuid_i(cs_insn *insn);
 int sar_i(cs_insn *insn);
 int sal_i(cs_insn *insn);
-int cmovne_i(cs_insn *insn);
 
 
 uint32_t reg_val(int reg_id);

@@ -204,7 +204,17 @@ void load_stack(int argc, char *argv[], char *envp[]){
     write32(esp, argc-1); 
 
 }
-
+/**
+ * Reads an ELF32 file and loads it into the memory. Also finds some relevant values for disassembly.
+ * 
+ * @param argc number of args.
+ * @param argv array pointer to the args (argc size).
+ * @param envp environment variables.
+ * @param sheader array that contains 2 positions for each executable section. Address and size (its size is 2*count).
+ * @param counter number of executable section.
+ * 
+ * @return 1 if error, 0 if success.
+ */
 uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count) {
 
     /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
@@ -316,6 +326,50 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
     load_stack(argc, argv, envp);
 
     /* No need to free mem pointer, because it is used in the main program */
+
+    return 0;
+}
+
+uint32_t read_raw_file(int argc, char *argv[], char*envp[], uint32_t *count){
+    /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
+
+    /* LOG File Initialization */
+    FILE *log = fopen("log.txt", "w"); 
+    if (log == NULL) {
+        perror("Error al abrir el archivo de log");
+        return 1;
+    }
+
+    /* Open raw file to perform binary read */
+    /* argc was already checked at proc.c so it must be at least 3 */
+    FILE *raw_file = fopen(argv[2], "rb");
+    if (!raw_file) {
+        perror("Error al abrir raw file");
+        fprintf(log, "Failed to open raw file. \n");
+        return 1;
+    }
+
+    /* Obtain file's size */
+    fseek(raw_file, 0, SEEK_END);
+    size_t size = ftell(raw_file);
+
+    rewind(raw_file); // volver al inicio
+
+    size_t readbytes = fread(mem, 1, size, raw_file);
+    if (readbytes != size) {
+        perror("Error al leer el archivo completo");
+        fprintf(log, "Failed to open raw file. \n");
+        fclose(log);
+        fclose(raw_file);
+        return EXIT_FAILURE;
+    }
+
+    *count = size;
+
+    eip = 0x00000000;
+
+    fclose(raw_file);
+    fclose(log);
 
     return 0;
 }

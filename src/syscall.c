@@ -355,6 +355,7 @@ uint32_t do_rt_sigaction(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t 
     //oldact32->sa_handler = oldact64->sa_handler - mem; /* Maybe it is not on mem range (mem - mem+0xFFFFFFFF) */
     /* Its not mandatory to translate oldact in some cases, we can just ignore it */
 
+    free(act64);
     return res;
 }
 uint32_t do_rt_sigprocmask(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3, uint32_t *arg4, uint32_t *arg5, uint32_t *arg6){} // Syscall number14
@@ -760,8 +761,13 @@ uint32_t do_execve(uint32_t *nr, uint32_t *arg1, uint32_t *arg2, uint32_t *arg3,
     envp = calloc(en32+1, sizeof(char *));
     translate_buffer_dirs_32_to_64(envp32, envp, en32);
     
+    uint32_t res;
+    res = (uint32_t)syscall(SYS_execve, pathname, argv, envp);
 
-    return (uint32_t)syscall(SYS_execve, pathname, argv, envp);
+    free(argv);
+    free(envp);
+
+    return res;
 }
 
 /**

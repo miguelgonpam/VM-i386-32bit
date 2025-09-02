@@ -55,5 +55,6 @@ typedef uint8_t byte;
 
 
 uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count);
+uint32_t read_raw_file(int argc, char *argv[], char *envp[], uint32_t *count);
 
 #endif

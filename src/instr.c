@@ -26,7 +26,7 @@ uint8_t regs_size[] = {   0, 0x08, 0x08, 0x10, 0x08, 0x08, 0x10,    0, 0x10, 0x0
 
 const char *inss[] = {
     "aaa","aad","aam","aas","adc","add","and","bt","bts","call","cbw","clc",
-    "cld","cli","cmc","cmp","cmpsb","cmpsw", "cmpsd","cwd", "cdq","cwde", "cpuid","daa","das","dec","div",
+    "cld","cli","cmc","cmp","cmpsb","cmpsw", "cmpsd","cwd", "cdq","cwde","daa","das","dec","div",
     "hlt","idiv","imul","in","inc","int","into","iret","ja","jae","jb","jbe",
     "jc","jcxz","jecxz_i","je","jg","jge","jl","jle","jmp","jna","jnae","jnb","jnbe",
     "jnc","jne","jng","jnge","jnl","jnle","jno","jnp","jns","jo","jp","jpe",
@@ -39,12 +39,12 @@ const char *inss[] = {
     "setnbe","setnc","setne","setng","setnge","setnl","setnle","setno","setnp",
     "setns","seto","setp","setpe","setpo","sets","setz","shl","shr","sal", "sar", "stc","std","sti",
     "stos","sub","test","wait","xchg","xlat","xor","rep ins", "rep movsb", "rep movsw", "rep movsd", "rep outs", "rep stosb",
-    "rep stosw","rep stosd", "cmovne"
+    "rep stosw","rep stosd"
     };
 
 Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i, 
     bt_i, bts_i, call_i, cbw_i, clc_i, cld_i, cli_i, cmc_i, cmp_i, cmpsb_i, cmpsw_i, cmpsd_i, cwd_i, cdq_i, 
-    cwde_i, cpuid_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
+    cwde_i, daa_i, das_i, dec_i, div_i, hlt_i, idiv_i, imul_i, in_i, inc_i, int_i, 
     into_i, iret_i, ja_i, jae_i, jb_i, jbe_i, jc_i, jcxz_i, jecxz_i, je_i, jg_i, jge_i, jl_i, 
     jle_i, jmp_i, jna_i, jnae_i, jnb_i, jnbe_i, jnc_i, jne_i, jng_i, jnge_i, jnl_i, 
     jnle_i, jno_i, jnp_i, jns_i, jo_i, jp_i, jpe_i, jpo_i, js_i, jz_i, lahf_i, 
@@ -57,7 +57,7 @@ Instruction instructions[] = {aaa_i, aad_i, aam_i, aas_i, adc_i, add_i, and_i,
     setnbe_i, setnc_i, setne_i, setng_i, setnge_i, setnl_i, setnle_i, setno_i, 
     setnp_i, setns_i, seto_i, setp_i, setpe_i, setpo_i, sets_i, setz_i, shl_i, shr_i, sal_i, sar_i, stc_i, 
     std_i, sti_i, stos_i, sub_i, test_i, wait_i, xchg_i, xlat_i, xor_i, rep_ins_i,
-    rep_movs_i, rep_movs_i, rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i, cmovne_i};
+    rep_movs_i, rep_movs_i, rep_movs_i, rep_outs_i, rep_stos_i, rep_stos_i, rep_stos_i};
 
 
 /******************************************************/
@@ -241,6 +241,8 @@ int aaa_i(cs_insn *insn){
         clear_Flag(AF);
         clear_Flag(ZF);
     }
+
+    return 0;
 }
 
 /**
@@ -264,6 +266,8 @@ int aad_i(cs_insn *insn){
     sign(*al, 0x8)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
     zero(*al)?clear_Flag(ZF):set_Flag(ZF); //set ZF if AL is 0
     parity(*al)?set_Flag(PF):clear_Flag(PF); //set PF if there is an even number of 1's.
+
+    return 0;
 }
 
 /**
@@ -288,6 +292,8 @@ int aam_i(cs_insn *insn){
     sign(*al, 0x8)?set_Flag(SF):clear_Flag(SF); //set SF to MSB of AL
     zero(*al)?clear_Flag(ZF):set_Flag(ZF); //set ZF if AL is 0
     parity(*al)?set_Flag(PF):clear_Flag(PF); //set PF if there is an even number of 1's.
+
+    return 0;
 }
 
 /**
@@ -316,6 +322,8 @@ int aas_i(cs_insn *insn){
         clear_Flag(AF);
         clear_Flag(CF);
     }
+
+    return 0;
 }
 
 /**
@@ -583,6 +591,8 @@ int and_i(cs_insn *insn){
     parity(res)?set_Flag(PF):clear_Flag(PF);
     clear_Flag(CF);
     clear_Flag(OF);
+
+    return 0;
 }
 
 /**
@@ -634,6 +644,8 @@ int arpl_i(cs_insn *insn){
             clear_Flag(ZF);
         }
     //op1 cant be X86_OP_IMM
+
+    return 0;
 }
 
 /**
@@ -674,6 +686,8 @@ int bound_i(cs_insn *insn){
             return -5; /* Interrupt 5 */
         }
     }
+
+    return 0;
 }
 
 /**
@@ -732,6 +746,8 @@ int bsf_i(cs_insn *insn){
             }
         }
     }
+
+    return 0;
 }
 
 /**
@@ -790,6 +806,8 @@ int bsr_i(cs_insn *insn){
             }
         }
     }
+
+    return 0;
 }
 
 /**
@@ -1576,6 +1594,8 @@ int pop_i(cs_insn *insn){
         esp+=4;
     }
 
+
+    return 0;
 }
 
 
@@ -1739,6 +1759,8 @@ int or_i(cs_insn *insn){
     parity(res)?set_Flag(PF):clear_Flag(PF);
     clear_Flag(CF);
     clear_Flag(OF);
+
+
     return 0;
 }
 
@@ -1942,6 +1964,8 @@ int cmpsd_i (cs_insn *insn){
 
 int cmpxchg(cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 }
 
 /**
@@ -2157,6 +2181,8 @@ int div_i (cs_insn *insn){
 } 
 int hlt_i (cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 } 
 
 /**
@@ -2525,7 +2551,17 @@ int imul_i (cs_insn *insn){
     return 0;
 } 
 
-
+/**
+ *  IN. Input from Port.
+ *
+ *  Opcode 0xE4, 0xE5, 0xEC, 0xED.
+ *
+ *  Privilege exceptions.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int in_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -2563,7 +2599,17 @@ int in_i (cs_insn *insn){
     return (res!=s1); 
 }
 
-
+/**
+ *  INC. Increment by 1.
+ *
+ *  Opcode 0xFE /0, 0xFF /0, 0xFF /6, 0x40 + r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  OF, SF, ZF, AF, and PF as described in Appendix C.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int inc_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -2666,6 +2712,8 @@ int into_i (cs_insn *insn){
 
 int iret_i (cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 }
 
 /**
@@ -3728,9 +3776,8 @@ int lar_i (cs_insn *insn){
 int lcall_i (cs_insn *insn){
     eip += insn->size;
 } 
-int lds_i (cs_insn *insn){
-    eip += insn->size;
-} 
+
+
 
 /**
  *  LEA. Load Effective Address.
@@ -3841,41 +3888,242 @@ int enter_i(cs_insn *insn){
 }
 
 /**
- * Deprecated. 
+ *  LDS. Load Full Pointer (DS).
+ *
+ *  Opcode 0xC5 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
  */
-int les_i (cs_insn *insn){
-    
+int lds_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if(s1 == 2){ /* 16 bits */
+        uint16_t * reg = (uint16_t *)regs[op1.reg];
+        uint16_t * m16 = (uint16_t *)(mem + eff_addr(op2.mem));
+        *reg = *m16;
+        ds = *(m16+1); /* Move pointer 2 bytes forward and access selector */
+
+    }else{       /* 32 bits */
+        uint32_t * reg = (uint32_t *)regs[op1.reg];
+        uint32_t * m32 = (uint32_t *)(mem + eff_addr(op2.mem));
+        *reg = *m32; /* 32 bit offset transfer*/
+        ds = *((uint16_t *)(m32+1)); /* 16 bit selector transfer (with 4 bytes offset)*/
+    }
+
+    return 0;
 } 
 
 /**
- * Deprecated. 
+ *  LES. Load Full Pointer (ES).
+ *
+ *  Opcode 0xC4 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int les_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if(s1 == 2){ /* 16 bits */
+        uint16_t * reg = (uint16_t *)regs[op1.reg];
+        uint16_t * m16 = (uint16_t *)(mem + eff_addr(op2.mem));
+        *reg = *m16;
+        es = *(m16+1); /* Move pointer 2 bytes forward and access selector */
+
+    }else{       /* 32 bits */
+        uint32_t * reg = (uint32_t *)regs[op1.reg];
+        uint32_t * m32 = (uint32_t *)(mem + eff_addr(op2.mem));
+        *reg = *m32; /* 32 bit offset transfer*/
+        es = *((uint16_t *)(m32+1)); /* 16 bit selector transfer (with 4 bytes offset)*/
+    }
+
+    return 0;
+} 
+
+/**
+ *  LFS. Load Full Pointer (FS).
+ *
+ *  Opcode 0x0F B4 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
  */
 int lfs_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if(s1 == 2){ /* 16 bits */
+        uint16_t * reg = (uint16_t *)regs[op1.reg];
+        uint16_t * m16 = (uint16_t *)(mem + eff_addr(op2.mem));
+        *reg = *m16;
+        fs = *(m16+1); /* Move pointer 2 bytes forward and access selector */
+
+    }else{       /* 32 bits */
+        uint32_t * reg = (uint32_t *)regs[op1.reg];
+        uint32_t * m32 = (uint32_t *)(mem + eff_addr(op2.mem));
+        *reg = *m32; /* 32 bit offset transfer*/
+        fs = *((uint16_t *)(m32+1)); /* 16 bit selector transfer (with 4 bytes offset)*/
+    }
+
+    return 0;
+}
     
+/**
+ *  LGS. Load Full Pointer (GS).
+ *
+ *  Opcode 0x0F B5 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lgs_i (cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if(s1 == 2){ /* 16 bits */
+        uint16_t * reg = (uint16_t *)regs[op1.reg];
+        uint16_t * m16 = (uint16_t *)(mem + eff_addr(op2.mem));
+        *reg = *m16;
+        gs = *(m16+1); /* Move pointer 2 bytes forward and access selector */
+
+    }else{       /* 32 bits */
+        uint32_t * reg = (uint32_t *)regs[op1.reg];
+        uint32_t * m32 = (uint32_t *)(mem + eff_addr(op2.mem));
+        *reg = *m32; /* 32 bit offset transfer*/
+        gs = *((uint16_t *)(m32+1)); /* 16 bit selector transfer (with 4 bytes offset)*/
+    }
+
+    return 0;
+} 
+
+/**
+ *  LSS. Load Full Pointer (SS).
+ *
+ *  Opcode 0x0F B2 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
+int lss_i(cs_insn *insn){
+    eip += insn->size;
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    if(s1 == 2){ /* 16 bits */
+        uint16_t * reg = (uint16_t *)regs[op1.reg];
+        uint16_t * m16 = (uint16_t *)(mem + eff_addr(op2.mem));
+        *reg = *m16;
+        ss = *(m16+1); /* Move pointer 2 bytes forward and access selector */
+
+    }else{       /* 32 bits */
+        uint32_t * reg = (uint32_t *)regs[op1.reg];
+        uint32_t * m32 = (uint32_t *)(mem + eff_addr(op2.mem));
+        *reg = *m32; /* 32 bit offset transfer*/
+        ss = *((uint16_t *)(m32+1)); /* 16 bit selector transfer (with 4 bytes offset)*/
+    }
+
+    return 0;
 }
 
 /**
- * Deprecated. 
+ *  LSL. Load Segment Limit.
+ *
+ *  Opcode 0x0F 03 /r.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  ZF as described.
+ *
+ *  @param insn instruction struct that stores all the information.
  */
-int lgs_i (cs_insn *insn){
-    
-} 
-
-/**
- * Deprecated. 
- */
-int lsl_i (cs_insn *insn){
+int lsl_i(cs_insn *insn){
     eip += insn->size;
-} 
+    cs_x86 x86 = insn->detail->x86;
+    cs_x86_op op1 = x86.operands[0];
+    cs_x86_op op2 = x86.operands[1];
+
+    uint8_t s1 = op1.size, s2 = op2.size;
+
+    uint16_t selector;
+    if (op2.type == X86_OP_REG){
+        selector = *((uint16_t *)regs[op2.reg]);
+    }else{
+        selector = *((uint16_t *)(mem + eff_addr(op2.mem)));
+    }
+
+    /* Also check permission and availability */
+    uint16_t n = (selector >> 3) & 0x1FFF;
+    if (n < GDT_ENTRIES){
+        set_Flag(ZF);
+        uint32_t limit = get_gdt_limit(selector);
+        if (s1 == 2){
+            *((uint16_t *)(regs[op1.reg])) = limit & 0xFFFF;
+        }else{
+            *((uint32_t *)(regs[op1.reg])) = limit;
+        }
+    }else{
+        clear_Flag(ZF);
+    }
+
+    return 0;
+}
 
 /**
  * Deprecated. 
  */
 int ltr_i (cs_insn *insn){
     eip += insn->size;
+    
 } 
 
-
+/**
+ *  LGDT. Load Global Descriptor Table Register
+ *
+ *  Opcode 0x0F 01 /2.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lgdt_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
@@ -3890,20 +4138,27 @@ int lgdt_i (cs_insn *insn){
     return 0;
 } 
 
-
+/**
+ *  LIDT. Load Interrupt Descriptor Table Register
+ *
+ *  Opcode 0x0F 01 /3.
+ *
+ *  Segment and Page Exceptions in Protected Mode.
+ *
+ *  No flags affected.
+ *
+ *  @param insn instruction struct that stores all the information.
+ */
 int lidt_i (cs_insn *insn){
     eip += insn->size;
     cs_x86 x86 = insn->detail->x86;
     cs_x86_op op1 = x86.operands[0];
 
-    uint16_t * p = (uint16_t *)(mem + eff_addr(op1.mem));
-
-    idtr.limit = *(p);
-    p++; /* Move the pointer 2 bytes forward */
-    idtr.base = *((uint32_t *)p);
+    /* Interrupt Descriptors Table ?*/
 
     return 0;
 } 
+
 int lldt_i (cs_insn *insn){
     eip += insn->size;
 } 
@@ -4257,6 +4512,8 @@ int neg_i (cs_insn *insn){
  */
 int nop_i (cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 }
 
 /**
@@ -4339,8 +4596,12 @@ int out_i (cs_insn *insn){
 
     return (res!=s2); 
 } 
+
+
 int outs_i (cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 } 
 
 /**
@@ -4883,7 +5144,7 @@ int sbb_i (cs_insn *insn){
     adjust(ini, (val+test_Flag(CF)), res)?set_Flag(AF):clear_Flag(AF);
     parity(res)?set_Flag(PF):clear_Flag(PF);
 
-    
+    return 0;    
 } 
 
 /**
@@ -6362,11 +6623,15 @@ int test_i (cs_insn *insn){
     parity(res)?set_Flag(PF):clear_Flag(PF);
     clear_Flag(CF);
     clear_Flag(OF);
+
+    return 0;
 } 
 
 
 int wait_i (cs_insn *insn){
     eip += insn->size;
+
+    return 0;
 } 
 
 /**
@@ -6591,35 +6856,8 @@ int rep_outs_i(cs_insn *insn){
     //insn.mnemonic;
 }
 
-int cpuid_i(cs_insn *insn){
-    eip += insn->size;
 
-    /* Max func supported*/
-    eax = 0x00000000;
-    /* Genu*/
-    ebx = 0x756e6547;
-    /* ineI*/
-    edx = 0x49656e69;
-    /* ntel */
-    ecx = 0x6c65746e;
-
-    return 0;
-}
-
-int cmovne_i(cs_insn *insn){
-    if (!test_Flag(ZF)){
-        return mov_i(insn);
-    }else{
-        eip += insn->size;
-    }
-    return 0;
-}
-
-
-
-
-
-
+/** AUXILIARY FUNCTIONS **/
 
 
 /**

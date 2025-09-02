@@ -1,1 +1,1 @@
-gcc -o proc source/*.c -lcapstone -lc
+gcc -o proc src/*.c -lcapstone -lc
