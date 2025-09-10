@@ -74,8 +74,9 @@ int blind_elf_main(int argc, char *argv[], char *envp[]){
 
    uint32_t res;
 
+   
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
-   if(read_elf_file(argc, argv, envp, &ini, &r)){
+   if(read_elf_file(argc, argv, envp, &ini, &r, NULL, NULL, NULL)){
       perror("elf");
       goto exit;
    }
@@ -96,14 +97,6 @@ int blind_elf_main(int argc, char *argv[], char *envp[]){
    /* Activate detail feature. Useful for obtaining operands and other info */
    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 
-   /* Disassemble all executable data loaded into mem. From ini to r. Stores it into insn array. */
-   /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
-   //count = cs_disasm(handle, &mem[ini], r-ini, ini, 0, &insn);
-   //if (!count){
-   //   printf("Failed to disassemble code\n");
-   //   return 1;
-   //}
-
    /* Main loop */
    while (true){
 
@@ -114,7 +107,7 @@ int blind_elf_main(int argc, char *argv[], char *envp[]){
       /* Check interrupts ???*/
       res = dispatcher(ins[0].mnemonic, &ins[0]);
 
-      if (res == 0xdeadbeef){
+      if (ins[0].bytes[0] == 0xCD && res == 0xdeadbeef){
          goto exit;
       }
 
@@ -179,7 +172,7 @@ int blind_raw_main(int argc, char *argv[], char *envp[]){
       /* Check interrupts ???*/
       res = dispatcher(ins[0].mnemonic, &ins[0]);
 
-      if (res == 0xdeadbeef){
+      if (ins[0].bytes[0] == 0xCD && res == 0xdeadbeef){
          goto exit;
       }
 
@@ -216,8 +209,11 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
    uint32_t *sheader, cc = 0;
 
 
+   uint32_t * symbols = &cc, ccc;
+   char * strtab = (char *)&cc;
+
    /* Reads the elf, loads it into the memory and pushes argc, argv and envp into the stack */
-   if(read_elf_file(argc, argv, envp, &sheader, &cc)){
+   if(read_elf_file(argc, argv, envp, &sheader, &cc, &symbols, &strtab, &ccc)){
       perror("elf");
       goto exit;
    }
@@ -282,12 +278,13 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
       perror("malloc");
       return 1;
    }
-   
+   char ** funcs = malloc((rows+1) * sizeof(char *));
    /* Allocates memory for each pointer so it can store a string. */
    for (int i = 0; i<rows; i++){
       /* Only for address */
       lineas[i*2]=malloc(ADDR_TXT_S);
       lineas[i*2+1]=malloc(MAX_STR);
+      funcs[i] = malloc(FUNC_TXT_S);
 
    }
    
@@ -326,6 +323,10 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
       /* EIP index, if its negative, EIP is not visible on the current screen, due to scroll */
       int eip_ind = -1;
       int exited = -1;
+
+      char * func;
+      uint32_t fbase, limit, strcount;
+
       for (size_t i = 0; i < MIN(rows, count -scr_c+1); i++) {
          uint32_t index = i+scr_c;
          uint32_t sh = 0;
@@ -343,6 +344,48 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
          if (addr == eip){
             eip_ind = i;
          }
+
+         if(i == 0){
+            for (int k=0; k< ccc; k++){
+               if(symbols[2*k+1] <= addr && addr < symbols[2*(k+1)+1]){  /* If current addr belongs to k function */
+                  func = &strtab[symbols[2*k]]; /* Get pointer to Func String*/
+                  fbase = symbols[2*k+1];
+                  limit = symbols[2*(k+1)+1];
+                  strcount = k;
+                  printf("0x%08x -> 0x%08x", addr, symbols[2*strcount+1]);
+                  break;
+                  
+               }
+            }
+            
+         }else{
+            if (addr < limit){ /* Same function */
+               /* Nothing changes*/
+            }else if(strcount -1 >= 0 && addr < symbols[2*(strcount)+1] && addr >= symbols[2*(strcount-1)+1]){
+               strcount--;
+               limit = fbase;
+               fbase = symbols[2*(strcount)+1];
+               func = &strtab[symbols[2*strcount]];
+            }else if(symbols[2*(strcount+1)+1] <= addr && addr < symbols[2*(strcount+2)+1]){ /* Next function */
+               strcount++;
+               fbase = limit;
+               func = &strtab[symbols[2*strcount]]; /* Get pointer to Func String*/
+               limit = symbols[2*(strcount+1)+1];
+            }else{  /* Other function (jmps, calls or rets)*/
+               for (int k=0; k< ccc-1; k++){
+                  if(symbols[2*k+1] <= addr && addr < symbols[2*(k+1)+1]){
+                     func = &strtab[symbols[2*k]]; /* Get pointer to Func String*/
+                     fbase = symbols[2*k+1];
+                     limit = symbols[2*(k+1)+1];
+                     strcount = k;
+                     break;
+                  }
+               }
+            }
+         }
+         
+         snprintf(funcs[i], FUNC_TXT_S-1, "%s+%u", func, addr-fbase);
+
          snprintf(lineas[i*2], ADDR_TXT_S-1, "0x%08x", addr);
          snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insns[sh][index - prev].mnemonic, insns[sh][index - prev].op_str);
          exited = i;
@@ -350,21 +393,31 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
 
       if (exited != rows-1){ /* No more instructions to show */
          while(exited != rows){
-
+            snprintf(funcs[exited], 3," ");
             snprintf(lineas[exited*2], 3, " ");
             snprintf(lineas[exited*2+1], 3, " ");
             exited++;
          }
       }
       /* Draw registers, code and stack */
-      draw_screen(scr_s, scr_c, lineas, rows, eip_ind);
+      draw_screen(scr_s, scr_c, lineas, rows, eip_ind, funcs);
       
       no_print:
       
 
       /* Move pointer to last line and Gets user's option */
       move(rows);
+
+      /* Disable echo from terminal so \n does not move the interface */
+      disable_echo();
+      fflush(stdout);
+
+      /* Get user's choice */
       ch = getch();
+
+      /* Enable echo from terminal so user can see his input if his option needs getting input */
+      enable_echo();
+      fflush(stdout);
       
       //ch = getchar(); /* Does not allow arrows */
       
@@ -838,7 +891,7 @@ int interface_raw_main(int argc, char *argv[], char *envp[]){
    /* If 5th argument is 0, disassembles all, if its 1 disassembles only one instruction */
    
    
-   /* Disassemble. EIP should be 0 right before this line. */
+   /* Disassemble. EIP should be 0 right before this line. Set to 0 in read_raw_file. */
    count = cs_disasm(handle, &mem[0], size-eip, eip, 0, &insn);
 
    if (!count){
@@ -909,15 +962,24 @@ int interface_raw_main(int argc, char *argv[], char *envp[]){
          }
       }
       /* Draw registers, code and stack */
-      draw_screen(scr_s, scr_c, lineas, rows, eip_ind);
+      draw_screen(scr_s, scr_c, lineas, rows, eip_ind, NULL);
       
       no_print:
       
 
       /* Move pointer to last line and Gets user's option */
       move(rows);
+
+      /* Disable echo from terminal so \n does not move the interface */
+      disable_echo();
+      fflush(stdout);
+
       ch = getch();
       
+      /* Enable echo from terminal in case some input or output is needed */
+      enable_echo();
+      fflush(stdout);
+
       //ch = getchar(); /* Does not allow arrows */
       
       /* Clean stdin */
@@ -991,9 +1053,6 @@ int interface_raw_main(int argc, char *argv[], char *envp[]){
             if (ins[0].bytes[0] == 0xCD){ /* INT imm8*/
                disable_raw_mode();
             }
-
-            
-            
 
             /* Check interrupts ???*/
             res = dispatcher(ins[0].mnemonic, &ins[0]);

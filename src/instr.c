@@ -84,6 +84,18 @@ Instruction instructions[] = {
  *  Initializes the memory and the reisters.
  */
 int initialize(){
+
+    /* ASLR (only stack) */
+    /*
+    // would be necessary to undef both STACK_BOTTOM and STACK_TOP (they are macros)
+    // and add extern uint32_t STACK_BOTTOM, STACK_TOP; in both proc.c and interface.c
+    uint8_t num = random() % 16;
+    STACK_BOTTOM = 0xffff0000 | (num << 12);
+    STACK_TOP = STACK_BOTTOM - 0x2000;
+    esp = STACK_BOTTOM;
+    
+    */
+
     /* Initialize registers. EFLAGS is already set in flags.c */
     esp = STACK_BOTTOM;
     
@@ -105,8 +117,10 @@ int initialize(){
     init_gdt(gdt);
     gdtr.base = GDT_ADDR;
     gdtr.limit = GDT_ENTRIES * sizeof(GDT_Descriptor);
-    idtr.base = GDT_ADDR;
-    idtr.limit = gdtr.limit;
+    
+    /* IDTR */
+
+    /* LDTR */
 
     return 1;
     
@@ -135,6 +149,7 @@ int dispatcher(char * mnemonic, cs_insn * insn){
 
     for (int i = 0; i< NINS ; i++){
         if(strcmp(inss[i], mnemonic) == 0){
+            /* UNIMPLEMENTED Interrupts Handling */
             return instructions[i](insn);
         }
     }

@@ -12,12 +12,15 @@
 
 #define REGS_BUFF_S 500
 #define ADDR_TXT_S 15
+#define FUNC_TXT_S 20
 
 int init_interface();
 void init_raw_mode();
 void enable_raw_mode();
 void disable_raw_mode();
-void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind);
+void enable_echo();
+void disable_echo();
+void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind, char ** funcs);
 void get_str(char * str, char * ret, size_t size, int c);
 void print(char * txt);
 int getch();

@@ -19,7 +19,7 @@ uint32_t old_eax, old_edx, old_esp, old_esi, old_ecx, old_ebx, old_ebp, old_edi,
 int rows, cols, spaces, w_code, w_stack;
 char *lines, *code, *stack;
 
-struct termios oldt, newt;
+struct termios oldt, newt, olde, newe;
 
 void init_raw_mode(){
     tcgetattr(STDIN_FILENO, &oldt);       // Guarda la config actual
@@ -32,6 +32,19 @@ void enable_raw_mode() {
     newt = oldt;
     newt.c_lflag &= ~(ICANON);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+}
+
+void disable_echo(){
+    tcgetattr(STDIN_FILENO, &olde);       // Guarda la config actual
+    newe = olde;
+    newe.c_lflag &= ~(ECHO);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
+    tcsetattr(STDIN_FILENO, TCSANOW, &newe);
+}
+
+void enable_echo(){
+    newe = olde;
+    newe.c_lflag &= ~(ECHO);     // Sin modo canónico y sin eco (~(ICANON | ECHO))
+    tcsetattr(STDIN_FILENO, TCSANOW, &newe);
 }
 
 void disable_raw_mode() {
@@ -116,7 +129,7 @@ int getch() {
     }
 }
 
-void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
+void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind, char ** funcs){
     /* Clear screen */
     cleanv(1, rows-3);
 
@@ -160,7 +173,12 @@ void draw_screen(int scr_s, int scr_c, char ** lineas, int count, int eip_ind){
     for (int i=0; i<rows-H_REGS-5; i++){ /* 5 lines left, 2 for the code box and 3 for stdin */
         if (i < count){
             /* Clear line and Print code addr in blue */
-            printf("\033[K│ <%s%s%s> : ", "\033[34m", lineas[i*2], "\033[0m"); 
+            if(funcs != NULL){
+                printf("\033[K│ %s%s%s <%s>: ", "\033[34m", lineas[i*2], "\033[0m", funcs[i]); 
+            }else{
+                printf("\033[K│ <%s%s%s>: ", "\033[34m", lineas[i*2], "\033[0m"); 
+            }
+            
             if(eip_ind >= 0 && eip_ind == i){
                 /* Highlight current instruction (EIP) */
                 printf("%s%s%s", "\033[7m",lineas[i*2+1],"\033[0m");

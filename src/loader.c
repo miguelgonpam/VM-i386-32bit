@@ -215,7 +215,7 @@ void load_stack(int argc, char *argv[], char *envp[]){
  * 
  * @return 1 if error, 0 if success.
  */
-uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count) {
+uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader, uint32_t *count, uint32_t ** symbols, char ** strtab, uint32_t *ccc) {
 
     /* mem should be already pointing to an allocated memory array of 4GB (calloc so every byte is 00 by default) */
 
@@ -301,8 +301,11 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
     
     *sheader = calloc(ehdr.e_shnum*2, sizeof(uint32_t));
     *count = 0;
-    /* Iterate Section Headers */
     
+    /* Variable for storing SYMTAB([0]) and STRTAB([1]) */
+    Elf32_Shdr tabs[2];
+
+    /* Iterate Section Headers */
     for (int i = 0; i < ehdr.e_shnum; i++) {
         fseek(elf_file, shdrs_start + i * ehdr.e_shentsize, SEEK_SET);
         Elf32_Shdr shdr;
@@ -310,13 +313,81 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
         if (shdr.sh_type == SHT_PROGBITS && (shdr.sh_flags & SHF_EXECINSTR)) {
             (*sheader)[2* (*count)]   = shdr.sh_addr;
             (*sheader)[2*(*count)+1] = shdr.sh_size;
-            //*count += shdr.sh_size;
-            //*ini = shdr.sh_addr;
-            //break; // nos quedamos solo con el primero
+            
             *count += 1; 
+        }else if(shdr.sh_type == SHT_SYMTAB){
+            tabs[0] = shdr;
+        }else if(shdr.sh_type == SHT_STRTAB && i != ehdr.e_shstrndx){ /* We want .strtab, not .shstrtab */
+            tabs[1] = shdr;
         }
         
     }
+
+    /* If ELF type of execution, they will contain trash, but not NULL */
+    if (symbols != NULL && *strtab != NULL){
+        
+        /* Number of symbols in SYMTAB */
+        int nsyms = tabs[0].sh_size / sizeof(Elf32_Sym);
+
+        /* Allocate memory for the entire strtab */
+        *strtab = calloc(sizeof(char), tabs[1].sh_size +1);
+
+        /* Move pointer to the start of strtab in the file*/
+        fseek(elf_file, tabs[1].sh_offset, SEEK_SET);
+        /* Read strtab to the local pointer variable */
+        fread(*strtab, tabs[1].sh_size,1, elf_file);
+
+
+        /* Move file pointer to first symbol in SYMTAB */
+        fseek(elf_file, tabs[0].sh_offset, SEEK_SET);
+
+        /* Allocate space for storing each symbol's name and value */
+        *symbols = calloc(nsyms*2 + 1, sizeof(uint32_t));
+
+        /* Counter within array. We are not goinf to use it entirely. Some symbols are not functions. */
+        *ccc = 0;
+        
+        /* Iterate through Symbol table entries */
+        for(int i=0; i< nsyms; i++){
+            Elf32_Sym sym;
+            fread(&sym, sizeof(Elf32_Sym), 1, elf_file);
+            if (ELF32_ST_TYPE(sym.st_info) == STT_FUNC){
+                /* Get string and store it */
+                (*symbols)[*ccc*2]   = sym.st_name; /* Index within strtab */
+                (*symbols)[*ccc*2+1] = sym.st_value; /* vaddr */
+                (*ccc)++;
+            }
+        }
+
+        /* Sort vaddrs */
+        for(int i=0; i<(*ccc)-1; i++){
+            int min_idx = i;
+            for (int j = i + 1; j < *ccc; j++) {
+                if ((*symbols)[2*j+1] < (*symbols)[2*min_idx+1]) {
+                    min_idx = j;
+                }
+            }  
+            if(min_idx != i){   /* Exchange */
+                uint32_t temp  = (*symbols)[i*2+1]; /* vaddr*/
+                uint32_t temp1 = (*symbols)[i*2]; /* index */
+
+                (*symbols)[i*2+1] = (*symbols)[min_idx*2+1];
+                (*symbols)[i*2] = (*symbols)[min_idx*2];
+
+                (*symbols)[min_idx*2+1] = temp;
+                (*symbols)[min_idx*2]   = temp1;
+            }
+            
+        }
+
+        for(int i=0; i<(*ccc)-1; i++){
+            printf(" 0x%08x -> %s\n", (*symbols)[2*i+1],*strtab + (*symbols)[2*i]);
+        }
+
+        fflush(stdout);
+        getchar();
+    }
+
     fclose(elf_file);
     fclose(log);
 
