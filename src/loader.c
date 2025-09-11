@@ -269,6 +269,9 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
     ph_num = ehdr.e_phnum;
     ph_size = ehdr.e_phentsize;
 
+    uint32_t progbits[2];
+    uint8_t progc = 0;
+
     /* Iterate trough Program Headers */
     for (int i = 0; i < ehdr.e_phnum; i++) {
         fseek(elf_file, phdrs_start + i * sizeof(Elf32_Phdr), SEEK_SET);
@@ -294,6 +297,17 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
         fread(mem + phdr.p_vaddr, 1, phdr.p_filesz, elf_file);
         //*last = phdr.p_vaddr + phdr.p_filesz;
         /* No zero fill needed*/
+
+        
+
+        if(!progc){ 
+            progbits[progc]=phdr.p_vaddr; /* Save first and PROGBITS section*/
+            progc++;
+        }else{
+            /* Rewrite progbits[1] until obtains the last one */
+            progbits[progc]=phdr.p_vaddr+phdr.p_filesz;
+        }
+
 
         fprintf(log, "Segment loaded. vaddr=0x%08x, size=%u bytes\n",phdr.p_vaddr, phdr.p_memsz);
         
@@ -351,7 +365,8 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
         for(int i=0; i< nsyms; i++){
             Elf32_Sym sym;
             fread(&sym, sizeof(Elf32_Sym), 1, elf_file);
-            if (ELF32_ST_TYPE(sym.st_info) == STT_FUNC){
+            int type = ELF32_ST_TYPE(sym.st_info);
+            if (type == STT_FUNC || (type == STT_NOTYPE && sym.st_value >= progbits[0] && sym.st_value <= progbits[1])){ /* Is FUNC or NOTYPE within .text */
                 /* Get string and store it */
                 (*symbols)[*ccc*2]   = sym.st_name; /* Index within strtab */
                 (*symbols)[*ccc*2+1] = sym.st_value; /* vaddr */
@@ -379,13 +394,6 @@ uint32_t read_elf_file(int argc, char *argv[], char *envp[], uint32_t **sheader,
             }
             
         }
-
-        for(int i=0; i<(*ccc)-1; i++){
-            printf(" 0x%08x -> %s\n", (*symbols)[2*i+1],*strtab + (*symbols)[2*i]);
-        }
-
-        fflush(stdout);
-        getchar();
     }
 
     fclose(elf_file);

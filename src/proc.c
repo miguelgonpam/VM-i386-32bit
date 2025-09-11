@@ -352,7 +352,6 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
                   fbase = symbols[2*k+1];
                   limit = symbols[2*(k+1)+1];
                   strcount = k;
-                  printf("0x%08x -> 0x%08x", addr, symbols[2*strcount+1]);
                   break;
                   
                }
@@ -383,8 +382,9 @@ int interface_elf_main(int argc, char *argv[], char *envp[]){
                }
             }
          }
-         
-         snprintf(funcs[i], FUNC_TXT_S-1, "%s+%u", func, addr-fbase);
+         /* Add yellow to func name ?*/
+         //snprintf(funcs[i], FUNC_TXT_S-1, "%s+%u", func, addr-fbase);
+         sprintf(funcs[i], "%s%s%s+%u", "\033[33m",func,"\033[0m", addr-fbase);
 
          snprintf(lineas[i*2], ADDR_TXT_S-1, "0x%08x", addr);
          snprintf(lineas[i*2+1], MAX_STR, "%.10s %.50s", insns[sh][index - prev].mnemonic, insns[sh][index - prev].op_str);

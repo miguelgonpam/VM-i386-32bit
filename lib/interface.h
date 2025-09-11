@@ -12,7 +12,7 @@
 
 #define REGS_BUFF_S 500
 #define ADDR_TXT_S 15
-#define FUNC_TXT_S 20
+#define FUNC_TXT_S 32
 
 int init_interface();
 void init_raw_mode();
