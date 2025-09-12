@@ -1,5 +1,5 @@
-# VM-i386-32bit
-Emulator that executes the i386-32bit Instruction set. \
+# Sim-i386-32bit
+Simulator that executes the i386-32bit Instruction set. \
 The goal is to create a 64-bit program that is able to execute a i386 32-bit program, ELF32 format. \
 Until syscall support is given for any arch, the project is designed to either execute in a x86_64 machine or a x86_64 docker. Ubuntu24.04 is recommended. \
 The syntax should be the following: 
@@ -8,10 +8,10 @@ The syntax should be the following:
 ```
 
 Mode can either be `-i`, `-n` or `-h`: \
-`-ie` runs the emulator using the graphic interface with an elf file. \
-`-ne` runs the emulator with an elf file as if it was run from the terminal. \
-`-ir` runs the emulator using the graphic interface with a raw file. \
-`-nr` runs the emulator with a raw file as if it was run from the terminal. \
+`-ie` runs the simulator using the graphic interface with an elf file. \
+`-ne` runs the simulator with an elf file as if it was run from the terminal. \
+`-ir` runs the simulator using the graphic interface with a raw file. \
+`-nr` runs the simulator with a raw file as if it was run from the terminal. \
 `-h` prints help regarding the usage of the program. If this option is specified, the 32bit program name is not necessary.
 
 But first, program needs to be compiled. It can be compiled either using the `compile.sh` script or with the following gcc line. Make sure to first install all the packages needed (see next section).
@@ -47,7 +47,7 @@ ln -s /usr/local/gcc-i386/bin/i386-linux-musl-gcc gcc-i386
 Result will be a `gcc-i386` symbolic link in our current folder that we can run with `./gcc-i386`. \
 Compiling the `musl-cross-make` project also brings cross binutils as `objdump` or `readelf`. Useful when looking for vulnerabilities within the code or understanding the program's flow. \
 It is very important that, when compiling, we use the `-static` and the `-no-pie` flags:
-- `-static` because the linker has not been implemented, so the emulator expects the libraries to be in the exectuable file.
+- `-static` because the linker has not been implemented, so the simulator expects the libraries to be in the exectuable file.
 - `-no-pie` so the code addresses are always the same, allowing replication. Useful when finding and using exploits.
 
 For example:
